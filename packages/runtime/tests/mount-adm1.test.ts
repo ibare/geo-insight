@@ -40,6 +40,39 @@ describe('mount — ADM1 지연 로딩', () => {
     inst.destroy();
   });
 
+  it('showOnly — ADM1 클릭으로 show 토글 + 대륙칩/기즈모 숨김', async () => {
+    const el = document.createElement('div');
+    let last: string | null = null;
+    const inst = mount(el, 'earth:\n  showOnly: 미국', {
+      editable: true,
+      interactive: false,
+      loadAdm1: async (c) => (c === '840' ? [CALIFORNIA] : null),
+      onChange: (s) => {
+        last = s;
+      },
+    });
+
+    // 미국 ADM1 로드 → California 가 캔버스 엔티티로 렌더.
+    await vi.waitFor(() => expect(el.querySelector('[data-key="USA-3521"]')).toBeTruthy());
+    // showOnly 에선 대륙 칩·기즈모 숨김.
+    expect(el.querySelector<HTMLElement>('.gi-edit-chips')!.style.display).toBe('none');
+    expect(el.querySelector<HTMLElement>('.gi-edit-gizmo')!.style.display).toBe('none');
+
+    // California path 를 클릭 → show 에 추가(선택).
+    Object.defineProperty(document, 'elementFromPoint', {
+      configurable: true,
+      value: () => ({ getAttribute: (k: string) => (k === 'data-key' ? 'USA-3521' : null) }),
+    });
+    const svg = el.querySelector('svg')!;
+    svg.dispatchEvent(new MouseEvent('pointerdown', { clientX: 100, clientY: 100, bubbles: true }));
+    svg.dispatchEvent(new MouseEvent('pointerup', { clientX: 100, clientY: 100, bubbles: true }));
+    expect(last).toBeTruthy();
+    expect(last!).toContain('캘리포니아'); // 엔티티 display(kor) 가 show 에 추가됨
+
+    Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: () => null });
+    inst.destroy();
+  });
+
   it('loadAdm1 미제공 시 ADM1 은 미해석(엔티티 없음)', async () => {
     const el = document.createElement('div');
     const diags: unknown[] = [];

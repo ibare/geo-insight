@@ -144,6 +144,12 @@ export function attachEditing(params: EditingParams): EditingController {
   gizmo.addEventListener('pointerdown', startCenterDrag);
   host.appendChild(gizmo);
 
+  // showOnly(격리) 에선 대륙 칩·중앙 기즈모가 무의미 → 숨김(인라인 스타일이 :hover 규칙보다 우선).
+  if (scene.showOnly) {
+    toolbar.style.display = 'none';
+    gizmo.style.display = 'none';
+  }
+
   function startCenterDrag(e: PointerEvent): void {
     e.preventDefault();
     e.stopPropagation();
@@ -322,6 +328,17 @@ export function attachEditing(params: EditingParams): EditingController {
     });
   };
 
+  /**
+   * 클릭/hover 지점의 ADM1 엔티티 식별 — showOnly 에선 모든 행정구역이 data-key 를
+   * 가진 개별 path 라 elementFromPoint(capture 무관)로 바로 잡는다. 국가 locator 불필요.
+   */
+  const entityAt = (clientX: number, clientY: number): Entity | null => {
+    const el = document.elementFromPoint(clientX, clientY);
+    const key = el && el.getAttribute ? el.getAttribute('data-key') : null;
+    if (!key) return null;
+    return scene.entities.find((en) => en.key === key) ?? null;
+  };
+
   /** 클릭 지점의 링크(data-link) 식별 — pointer capture 영향 없는 elementFromPoint 사용. */
   const linkAt = (clientX: number, clientY: number): Link | null => {
     const el = document.elementFromPoint(clientX, clientY);
@@ -379,12 +396,38 @@ export function attachEditing(params: EditingParams): EditingController {
 
   // ── hover ──
   let hovered: LocatedCountry | null = null;
+  let hoveredKey: string | null = null; // showOnly ADM1 hover 추적
   let rafId = 0;
   let pending: { x: number; y: number } | null = null;
 
   const processHover = (): void => {
     rafId = 0;
     if (!pending || menuEl) return;
+    // showOnly — ADM1 엔티티 hover 하이라이트 + 선택/해제 힌트.
+    if (scene.showOnly) {
+      const ent = entityAt(pending.x, pending.y);
+      if ((ent?.key ?? null) !== hoveredKey) {
+        hoveredKey = ent?.key ?? null;
+        if (ent && ent.features[0]) {
+          highlight.setAttribute('d', cam.path(ent.features[0]));
+          highlight.style.display = '';
+        } else {
+          highlight.style.display = 'none';
+        }
+      }
+      if (ent) {
+        const shown = hasShowName(getSource(), ent.display);
+        tooltip.textContent = `${ent.display}  ${shown ? '· 클릭: 해제' : '+ 선택'}`;
+        tooltip.style.display = '';
+        const rect = host.getBoundingClientRect();
+        tooltip.style.left = `${pending.x - rect.left + 12}px`;
+        tooltip.style.top = `${pending.y - rect.top + 12}px`;
+      } else {
+        tooltip.style.display = 'none';
+      }
+      pending = null;
+      return;
+    }
     // 링크 위면 링크 편집 힌트.
     if (linkAt(pending.x, pending.y)) {
       hovered = null;
@@ -426,6 +469,7 @@ export function attachEditing(params: EditingParams): EditingController {
   };
   const onLeave = (): void => {
     hovered = null;
+    hoveredKey = null;
     highlight.style.display = 'none';
     tooltip.style.display = 'none';
   };
@@ -444,6 +488,16 @@ export function attachEditing(params: EditingParams): EditingController {
     downActive = false;
     if (menuEl) return; // 메뉴 열림 중 — backdrop 가 처리
     if (Math.hypot(e.clientX - downX, e.clientY - downY) > CLICK_MOVE_THRESHOLD) return; // 팬
+    // showOnly — ADM1 클릭으로 show 토글(선택 ↔ 해제).
+    if (scene.showOnly) {
+      const ent = entityAt(e.clientX, e.clientY);
+      if (!ent) return;
+      onLeave();
+      const src = getSource();
+      const next = hasShowName(src, ent.display) ? removeShowName(src, ent.display) : addShowName(src, ent.display);
+      if (next !== src) applyEdit(next);
+      return;
+    }
     // 링크(화살표/선) 클릭 → 링크 메뉴
     const link = linkAt(e.clientX, e.clientY);
     if (link) {
