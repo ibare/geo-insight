@@ -23,6 +23,8 @@ export type {
   SceneMeta,
   Entity,
   Link,
+  LinkType,
+  ArrowHead,
   Label,
   Role,
   ProjSpec,
@@ -34,6 +36,8 @@ export type {
   Theme,
   ResolvedTheme,
 } from './types.js';
+
+export { registerLinkRenderer, type LinkRenderer, type LinkGeometry, type RoutedPath } from './passes/links.js';
 
 export type { Ast, Statement, ScenePropStmt, EntityStmt, LinkStmt, LabelStmt, ThemeStmt } from './ast.js';
 export type { Diagnostic, Span } from './diagnostics.js';

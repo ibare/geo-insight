@@ -34,6 +34,10 @@ export interface ResolvedStyle {
   opacity: number;
 }
 
+/** 링크 표현 종류. 렌더러 레지스트리로 확장 가능(미등록은 arrow 로 폴백). */
+export type LinkType = 'arrow' | 'wind' | 'current' | 'route';
+export type ArrowHead = 'taper' | 'triangle' | 'none';
+
 export interface ArrowStyle {
   color: string;
   /** taper wedge 시작/끝 폭(px). */
@@ -43,6 +47,10 @@ export interface ArrowStyle {
   headLength: number;
   /** arrowhead 폭(px). */
   headWidth: number;
+  /** arrowhead 모양. */
+  head: ArrowHead;
+  /** stroke 기반 타입(wind/route)의 점선 패턴. */
+  dash?: number[];
 }
 
 export interface Theme {
@@ -84,6 +92,12 @@ export interface Link {
   anchor: 'border' | 'centroid';
   curve: number;
   geodesic: boolean;
+  /** 표현 종류 (arrow 기본). */
+  type: LinkType;
+  /** 링크 라벨(선택). */
+  label?: string;
+  /** 라벨 배치 지점. */
+  labelAt: 'start' | 'mid' | 'end';
   style: ArrowStyle;
 }
 

@@ -11,9 +11,11 @@ import { type Diagnostic, error } from '../diagnostics.js';
 import { boundsOf, centroidOf } from '../geometry.js';
 import { resolveColor } from '../theme.js';
 import type {
+  ArrowHead,
   ArrowStyle,
   Entity,
   FitSpec,
+  LinkType,
   ProjectionType,
   ResolvedStyle,
   Theme,
@@ -25,7 +27,30 @@ export interface LinkSpec {
   anchor: 'border' | 'centroid';
   curve: number;
   geodesic: boolean;
+  type: LinkType;
+  label?: string;
+  labelAt: 'start' | 'mid' | 'end';
   style: ArrowStyle;
+}
+
+/** link 계열 scene 키워드 → 타입. (link = arrow 기본) */
+const LINK_KEYWORDS: Record<string, LinkType> = {
+  link: 'arrow',
+  arrow: 'arrow',
+  wind: 'wind',
+  current: 'current',
+  route: 'route',
+};
+
+interface LinkDeclEntry {
+  from: string;
+  to: string;
+  props: PropMap;
+  span: Diagnostic['span'];
+  /** scene 키워드(wind/current 등)에서 온 타입. props.type 보다 우선. */
+  type?: LinkType;
+  /** 인라인 트레일링 문자열 라벨. props.label 보다 우선. */
+  label?: string;
 }
 
 export interface LabelSpec {
@@ -85,7 +110,7 @@ export function buildScene(ast: Ast, opts: BuildOptions): BuiltScene {
 
   const showNames: string[] = [];
   const entityDecls: Array<{ role: Role; name: string; props: PropMap; span: Diagnostic['span'] }> = [];
-  const linkDecls: Array<{ from: string; to: string; props: PropMap; span: Diagnostic['span'] }> = [];
+  const linkDecls: LinkDeclEntry[] = [];
   const labelDecls: Array<{ target: string; props: PropMap }> = [];
 
   for (const stmt of ast.statements) {
@@ -217,14 +242,21 @@ export function buildScene(ast: Ast, opts: BuildOptions): BuiltScene {
       diagnostics.push(error(`링크 끝점을 해석할 수 없습니다: '${d.from} -> ${d.to}'`, d.span));
       continue;
     }
-    links.push({
+    const type = d.type ?? toLinkType(str(d.props.type)) ?? 'arrow';
+    const label = d.label ?? str(d.props.label);
+    const labelAt = toLabelAt(str(d.props.labelAt));
+    const spec: LinkSpec = {
       from,
       to,
       anchor: (str(d.props.anchor) as 'border' | 'centroid') ?? 'border',
       curve: num(d.props.curve, 0.25),
       geodesic: bool(d.props.geodesic, false),
-      style: arrowStyleFrom(d.props, theme),
-    });
+      type,
+      labelAt,
+      style: arrowStyleFrom(d.props, theme, type),
+    };
+    if (label) spec.label = label;
+    links.push(spec);
   }
 
   // 9. 라벨 사양
@@ -251,22 +283,33 @@ export function buildScene(ast: Ast, opts: BuildOptions): BuiltScene {
 
 function applySceneProp(
   key: string,
-  stmt: { raw: string; list?: string[]; relation?: { from: string; to: string }; span: Diagnostic['span'] },
+  stmt: { raw: string; list?: string[]; relation?: { from: string; to: string }; label?: string; span: Diagnostic['span'] },
   config: SceneConfig,
   showNames: string[],
-  linkDecls: Array<{ from: string; to: string; props: PropMap; span: Diagnostic['span'] }>,
+  linkDecls: LinkDeclEntry[],
   diagnostics: Diagnostic[],
 ): void {
+  // link 계열 키워드(link/wind/current/route) → 해당 타입의 링크
+  const linkType = LINK_KEYWORDS[key];
+  if (linkType) {
+    if (stmt.relation) {
+      const entry: LinkDeclEntry = {
+        from: stmt.relation.from,
+        to: stmt.relation.to,
+        props: {},
+        span: stmt.span,
+        type: linkType,
+      };
+      if (stmt.label) entry.label = stmt.label;
+      linkDecls.push(entry);
+    } else {
+      diagnostics.push(error(`${key} 은 'A -> B' 형식이어야 합니다.`, stmt.span));
+    }
+    return;
+  }
   switch (key) {
     case 'show':
       (stmt.list ?? [stmt.raw]).forEach((n) => showNames.push(n));
-      break;
-    case 'link':
-      if (stmt.relation) {
-        linkDecls.push({ from: stmt.relation.from, to: stmt.relation.to, props: {}, span: stmt.span });
-      } else {
-        diagnostics.push(error("link 은 'A -> B' 형식이어야 합니다.", stmt.span));
-      }
       break;
     case 'arrange':
       if (stmt.relation) config.arrange = stmt.relation;
@@ -342,16 +385,61 @@ function applyStyleProps(style: ResolvedStyle, props: PropMap, theme: Theme): vo
   if (props.opacity != null && typeof props.opacity === 'number') style.opacity = props.opacity;
 }
 
-function arrowStyleFrom(props: PropMap, theme: Theme): ArrowStyle {
+function toLinkType(v: string | undefined): LinkType | undefined {
+  if (v && v in LINK_KEYWORDS) return LINK_KEYWORDS[v];
+  return undefined;
+}
+
+function toLabelAt(v: string | undefined): 'start' | 'mid' | 'end' {
+  return v === 'start' || v === 'end' ? v : 'mid';
+}
+
+function mapHead(v: string | undefined): ArrowHead | undefined {
+  if (!v) return undefined;
+  if (v === 'taper' || v === 'wedge') return 'taper';
+  if (v === 'triangle') return 'triangle';
+  if (v === 'none' || v === 'line') return 'none';
+  return undefined;
+}
+
+/** 타입별 기본 외형 + props 오버라이드(color/head). */
+function arrowStyleFrom(props: PropMap, theme: Theme, type: LinkType): ArrowStyle {
   const color = props.color != null ? resolveColor(String(props.color), theme) : theme.linkColor;
-  const taper = str(props.arrow) !== 'line';
-  return {
-    color,
-    widthStart: taper ? 1.5 : 2,
-    widthEnd: taper ? 6 : 2,
-    headLength: 14,
-    headWidth: 12,
-  };
+  let head: ArrowHead;
+  let widthStart: number;
+  let widthEnd: number;
+  let dash: number[] | undefined;
+  switch (type) {
+    case 'wind':
+      head = 'triangle';
+      widthStart = 2;
+      widthEnd = 2;
+      dash = [7, 5];
+      break;
+    case 'current':
+      head = 'triangle';
+      widthStart = 2.5;
+      widthEnd = 2.5;
+      break;
+    case 'route':
+      head = 'none';
+      widthStart = 1.5;
+      widthEnd = 1.5;
+      dash = [2, 5];
+      break;
+    case 'arrow':
+    default:
+      // 하위호환: arrow: line → head none(가는 선)
+      head = str(props.arrow) === 'line' ? 'none' : 'taper';
+      widthStart = head === 'taper' ? 1.5 : 2;
+      widthEnd = head === 'taper' ? 6 : 2;
+      break;
+  }
+  const overrideHead = mapHead(str(props.head));
+  if (overrideHead) head = overrideHead;
+  const style: ArrowStyle = { color, widthStart, widthEnd, headLength: 14, headWidth: 12, head };
+  if (dash) style.dash = dash;
+  return style;
 }
 
 function parseThemeProps(props: PropMap, theme: Theme): Partial<Theme> {

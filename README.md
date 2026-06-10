@@ -65,14 +65,16 @@ earth "대권 항로":
 | 키 | 위치 | 값 |
 |---|---|---|
 | `show` | scene | 이름 리스트 |
-| `link` | scene | `A -> B` |
+| `link` / `wind` / `current` / `route` | scene | `A -> B "라벨"` (관계 타입별 키워드, 트레일링 문자열은 라벨) |
 | `center` | scene | lon 숫자 \| 엔티티명 \| `pacific`/`태평양`/`atlantic`/`대서양`/`인도양` |
 | `arrange` | scene | `A -> B` (좌→우, center 자동 산출) |
 | `fit` | scene | `entities` \| `dominant` \| `world` \| `[w,s,e,n]` |
 | `projection` | scene | `naturalEarth1` \| `equirectangular` \| `mercator` \| `orthographic` \| `robinson`* \| `winkel3`* |
 | `group`/`focus`/`plain` | entity | `{ fill, borders, label, opacity }` |
-| `link … { }` | scene | `{ arrow, curve, color, anchor, geodesic }` |
+| `link … { }` | scene | `{ type, label, labelAt, head, curve, color, anchor, geodesic }` |
 | `theme` | scene | `{ ocean, linkColor, worldFaint, graticule }` |
+
+**링크 타입**: `arrow`(기본, taper wedge+화살촉) · `wind`(점선 흐름) · `current`(물결, 해류) · `route`(가는 점선). 최소형은 타입 키워드로(`wind: 태평양 -> 인도양 "무역풍"`), 명시형은 `link … { type: current, label: "쿠로시오", labelAt: mid }`. `head`(`taper`\|`triangle`\|`none`)로 화살촉 모양 조정. 새 타입은 `registerLinkRenderer(type, fn)`로 확장 가능.
 
 \* `robinson`/`winkel3`은 d3-geo-projection이 필요하다. 미등록 시 naturalEarth1로 폴백(경고).
 Node CLI 등에서 `registerExtProjection('robinson', geoRobinson)`로 주입할 수 있다.

@@ -74,14 +74,20 @@ export function compile(source: string, opts: InternalOptions = {}): CompileResu
   const routed = routeLinks(camera, built.links, entityMap);
 
   // Scene IR (툴링/검사용)
-  const links: Link[] = built.links.map((l) => ({
-    from: l.from,
-    to: l.to,
-    anchor: l.anchor,
-    curve: l.curve,
-    geodesic: l.geodesic,
-    style: l.style,
-  }));
+  const links: Link[] = built.links.map((l) => {
+    const link: Link = {
+      from: l.from,
+      to: l.to,
+      anchor: l.anchor,
+      curve: l.curve,
+      geodesic: l.geodesic,
+      type: l.type,
+      labelAt: l.labelAt,
+      style: l.style,
+    };
+    if (l.label) link.label = l.label;
+    return link;
+  });
   const labels: Label[] = built.labels.map((l) => ({
     text: l.text,
     at: l.at,

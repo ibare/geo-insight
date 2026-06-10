@@ -29,28 +29,25 @@ describe('compile — 최소형 (africa-sudan-india)', () => {
     expect(scene.entities.indexOf(africa)).toBeLessThan(scene.entities.indexOf(sudan));
   });
 
-  it('SVG 레이어 순서: ocean → graticule → world → entities → links → arrows → labels', () => {
+  it('SVG 레이어 순서: ocean → graticule → world → entities → links → labels', () => {
     const { svg } = compile(src);
     const iOcean = svg.indexOf('gi-ocean');
     const iGrat = svg.indexOf('gi-graticule');
     const iWorld = svg.indexOf('gi-world');
     const iEntity = svg.indexOf('gi-entity');
     const iLink = svg.indexOf('gi-link');
-    const iArrow = svg.indexOf('gi-arrow');
     const iLabel = svg.indexOf('gi-labels');
     expect(iOcean).toBeGreaterThanOrEqual(0);
     expect(iOcean).toBeLessThan(iGrat);
     expect(iGrat).toBeLessThan(iWorld);
     expect(iWorld).toBeLessThan(iEntity);
     expect(iEntity).toBeLessThan(iLink);
-    expect(iLink).toBeLessThan(iArrow);
-    expect(iArrow).toBeLessThan(iLabel);
+    expect(iLink).toBeLessThan(iLabel);
   });
 
-  it('수단→인도 taper wedge + arrowhead 가 생성된다', () => {
+  it('수단→인도 화살표(taper wedge + arrowhead) 가 gi-link 로 생성된다', () => {
     const { svg } = compile(src);
     expect(svg).toContain('gi-link');
-    expect(svg).toContain('gi-arrow');
   });
 
   it('결정성: 동일 입력은 바이트 동일 SVG', () => {
@@ -87,6 +84,14 @@ describe('compile — 좌우 배치 (trade-winds)', () => {
   it('title 이 scene 에 담긴다', () => {
     const { scene } = compile(src);
     expect(scene.title).toBe('무역풍');
+  });
+});
+
+describe('compile — fit', () => {
+  it('fit:bbox 는 world 보다 확대된다(winding 폭주 버그 회귀 방지)', () => {
+    const world = compile('earth:\n  center: 100\n  fit: world\n  show: 한국, 인도').meta.projectionParams.scale;
+    const bbox = compile('earth:\n  center: 100\n  fit: [55,0,150,55]\n  show: 한국, 인도').meta.projectionParams.scale;
+    expect(bbox).toBeGreaterThan(world * 1.5);
   });
 });
 

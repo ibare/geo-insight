@@ -161,15 +161,19 @@ function fitGeometry(config: SceneConfig, entities: Entity[], _centerLon: number
 }
 
 function bboxPolygon([w, s, e, n]: [number, number, number, number]): unknown {
-  // antimeridian 미고려 단순 사각형. d3 가 리샘플링으로 곡선 변(경계)을 처리.
-  const ring = [
-    [w, s],
-    [e, s],
-    [e, n],
-    [w, n],
-    [w, s],
-  ];
-  return { type: 'Polygon', coordinates: [ring] };
+  // Polygon 으로 주면 d3-geo 가 ring winding 을 구면상 여집합(전세계)으로 해석해
+  // fit 이 전세계로 폭주한다. winding 모호성이 없는 둘레 샘플 MultiPoint 로 대체 —
+  // fitExtent 는 점들의 투영 bounds 를 쓰므로 곡선 변까지 포함해 정확히 프레이밍.
+  const STEPS = 16;
+  const pts: Array<[number, number]> = [];
+  for (let i = 0; i <= STEPS; i++) {
+    const t = i / STEPS;
+    pts.push([w + (e - w) * t, s]); // 아래 변
+    pts.push([w + (e - w) * t, n]); // 위 변
+    pts.push([w, s + (n - s) * t]); // 왼 변
+    pts.push([e, s + (n - s) * t]); // 오른 변
+  }
+  return { type: 'MultiPoint', coordinates: pts };
 }
 
 /**

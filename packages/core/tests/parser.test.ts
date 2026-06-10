@@ -74,6 +74,22 @@ describe('parser — 명시형', () => {
   });
 });
 
+describe('parser — 링크 인라인 라벨', () => {
+  it('link: A -> B "라벨" 의 트레일링 문자열을 label 로 분리', () => {
+    const { ast } = parse(`earth:\n  link: 수단 -> 인도 "무역 항로"`);
+    const p = ast.statements[0] as ScenePropStmt;
+    expect(p.relation).toEqual({ from: '수단', to: '인도' });
+    expect(p.label).toBe('무역 항로');
+  });
+  it('라벨 없으면 to 가 온전하다', () => {
+    const { ast } = parse(`earth:\n  wind: 태평양 -> 인도양`);
+    const p = ast.statements[0] as ScenePropStmt;
+    expect(p.key).toBe('wind');
+    expect(p.relation).toEqual({ from: '태평양', to: '인도양' });
+    expect(p.label).toBeUndefined();
+  });
+});
+
 describe('parser — center 음수/프리셋, fit bbox', () => {
   it('center 음수 경도', () => {
     const { ast } = parse(`earth:\n  center: -120`);

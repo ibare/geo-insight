@@ -177,11 +177,17 @@ class Parser {
     if (valueTokens.some((t) => t.type === 'comma')) {
       stmt.list = splitByComma(valueTokens);
     }
-    // 관계 (link/arrange 등)
+    // 관계 (link/arrange 등) — 우측 끝 문자열 토큰은 라벨로 분리
     const arrowIdx = valueTokens.findIndex((t) => t.type === 'arrow');
     if (arrowIdx >= 0) {
+      const rightTokens = valueTokens.slice(arrowIdx + 1);
+      const last = rightTokens[rightTokens.length - 1];
+      if (last && last.type === 'string') {
+        rightTokens.pop();
+        stmt.label = last.value;
+      }
       const from = joinTokens(valueTokens.slice(0, arrowIdx)).trim();
-      const to = joinTokens(valueTokens.slice(arrowIdx + 1)).trim();
+      const to = joinTokens(rightTokens).trim();
       stmt.relation = { from, to };
     }
     return stmt;

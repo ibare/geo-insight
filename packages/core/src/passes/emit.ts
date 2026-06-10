@@ -73,17 +73,16 @@ export function emit(input: EmitInput): string {
     );
   }
 
-  // 5. links (wedge)
+  // 5. links (타입별 path — wedge/stroke/wavy/arrowhead 모두 paths 로)
   for (const l of links) {
-    if (l.wedge) out.push(path(l.wedge, { class: 'gi-link', fill: l.color, stroke: 'none' }));
-  }
-  // 6. arrowheads
-  for (const l of links) {
-    if (l.arrowhead) out.push(path(l.arrowhead, { class: 'gi-arrow', fill: l.color, stroke: 'none' }));
+    for (const p of l.paths) {
+      if (p.d) out.push(linkPath(p));
+    }
   }
 
-  // 7. labels (halo + fill)
-  if (labels.length > 0) {
+  // 6. labels (엔티티 + 링크). halo + fill.
+  const linkLabels = links.filter((l) => l.label);
+  if (labels.length > 0 || linkLabels.length > 0) {
     out.push(`<g class="gi-labels" font-family="${escapeAttr(theme.label.font)}" font-size="${theme.label.size}" text-anchor="middle">`);
     for (const lab of labels) {
       const common = `x="${lab.x}" y="${lab.y}" data-key="${escapeAttr(lab.entityKey)}"`;
@@ -92,11 +91,30 @@ export function emit(input: EmitInput): string {
       );
       out.push(`<text ${common} class="gi-label" fill="${theme.label.fill}">${escapeText(lab.text)}</text>`);
     }
+    for (const l of links) {
+      if (!l.label) continue;
+      const common = `x="${l.label.x}" y="${l.label.y}"`;
+      out.push(
+        `<text ${common} class="gi-link-label-halo" fill="none" stroke="${theme.label.halo}" stroke-width="3" stroke-linejoin="round">${escapeText(l.label.text)}</text>`,
+      );
+      out.push(`<text ${common} class="gi-link-label" fill="${theme.label.fill}">${escapeText(l.label.text)}</text>`);
+    }
     out.push('</g>');
   }
 
   out.push('</svg>');
   return out.join('\n');
+}
+
+function linkPath(p: { d: string; fill: string; stroke: string; width?: number; dash?: string }): string {
+  const attrs: Record<string, string> = { class: 'gi-link', fill: p.fill, stroke: p.stroke };
+  if (p.stroke !== 'none') {
+    attrs['stroke-width'] = String(p.width ?? 2);
+    attrs['stroke-linecap'] = 'round';
+    attrs['stroke-linejoin'] = 'round';
+    if (p.dash) attrs['stroke-dasharray'] = p.dash;
+  }
+  return path(p.d, attrs);
 }
 
 function path(d: string, attrs: Record<string, string>): string {

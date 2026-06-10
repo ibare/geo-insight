@@ -25,6 +25,8 @@ export interface ScenePropStmt {
   list?: string[];
   /** link/arrange 처럼 `A -> B` 면 분해. 아니면 undefined. */
   relation?: RelationRef;
+  /** 관계 뒤 트레일링 문자열 = 링크 라벨 (예: `link: A -> B "무역풍"`). */
+  label?: string;
   span: Span;
 }
 

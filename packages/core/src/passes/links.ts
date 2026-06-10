@@ -1,30 +1,58 @@
 /**
  * Link routing 패스.
  *
- * 끝점을 anchor 로 해석:
- *  - centroid: centroid↔centroid.
- *  - border: 출발/도착 폴리곤 경계에서 시작/도착하도록 화면상 점-내포 판정으로 자른다.
- * geodesic 이면 대권선(geoInterpolate)을 샘플링 후 투영, 아니면 화면 좌표 이차 베지어(curve).
- * 중심선을 따라 폭을 보간한 taper wedge(채워진 폴리곤) + 별도 arrowhead 삼각형 산출.
+ * 끝점을 anchor 로 해석(centroid/border), geodesic 이면 대권선 샘플링, 아니면 화면
+ * 이차 베지어(curve). 중심선은 공통이고, **타입별 렌더러**가 외형을 만든다:
+ *   - arrow:   taper wedge(채움) + arrowhead, 또는 head 설정에 따라 가는 선
+ *   - wind:    점선 stroke + 작은 arrowhead (흐름 느낌)
+ *   - current: 물결(사인 오프셋) stroke + arrowhead (해류)
+ *   - route:   가는 점선 (경로)
+ * 라벨이 있으면 labelAt 지점의 화면 좌표를 함께 반환한다.
+ *
+ * 타입 렌더러는 registerLinkRenderer 로 확장 가능(미등록 타입은 arrow 폴백).
  */
 
 import { interpolator } from '../geometry.js';
 import { round } from '../projection.js';
-import type { Entity } from '../types.js';
+import type { ArrowStyle, Entity, LinkType } from '../types.js';
 import type { Camera } from './camera.js';
 import type { LinkSpec } from './build-scene.js';
 
+export interface RoutedPath {
+  d: string;
+  fill: string;
+  stroke: string;
+  width?: number;
+  dash?: string;
+}
+
 export interface RoutedLink {
-  /** 채워진 wedge path d. */
-  wedge: string;
-  /** arrowhead 삼각형 path d. */
-  arrowhead: string;
-  color: string;
+  paths: RoutedPath[];
+  label?: { text: string; x: number; y: number };
 }
 
 type XY = [number, number];
 
+/** 중심선 + 끝/접선 정보 — 타입 렌더러 입력. */
+export interface LinkGeometry {
+  /** 시작~wedgeEnd 까지의 본체 폴리라인(화면 좌표). */
+  body: XY[];
+  /** arrowhead 꼭짓점(도착 경계). */
+  tip: XY;
+  /** tip 에서의 단위 접선. */
+  tangent: XY;
+  style: ArrowStyle;
+}
+
+export type LinkRenderer = (geo: LinkGeometry) => RoutedPath[];
+
 const SAMPLES = 64;
+const rendererRegistry = new Map<string, LinkRenderer>();
+
+/** 사용자 정의 링크 렌더러 등록(호스트/플러그인 확장). */
+export function registerLinkRenderer(type: string, renderer: LinkRenderer): void {
+  rendererRegistry.set(type, renderer);
+}
 
 export function routeLinks(
   camera: Camera,
@@ -50,18 +78,15 @@ function routeOne(camera: Camera, link: LinkSpec, from: Entity, to: Entity): Rou
 
   let startIdx = 0;
   let tipIdx = samples.length - 1;
-
   if (link.anchor === 'border') {
     const fromExt = projectedExteriors(camera, from);
     const toExt = projectedExteriors(camera, to);
-    // 출발: from 내부를 벗어나는 첫 지점.
     for (let i = 0; i < samples.length; i++) {
       if (!pointInAny(samples[i]!, fromExt)) {
         startIdx = i;
         break;
       }
     }
-    // 도착: to 내부에 들어가는 첫 지점(끝쪽에서 가장 이른).
     for (let i = startIdx + 1; i < samples.length; i++) {
       if (pointInAny(samples[i]!, toExt)) {
         tipIdx = i;
@@ -71,21 +96,74 @@ function routeOne(camera: Camera, link: LinkSpec, from: Entity, to: Entity): Rou
   }
 
   let line = samples.slice(startIdx, tipIdx + 1);
-  if (line.length < 2) line = samples.slice(); // 폴백: 전체
+  if (line.length < 2) line = samples.slice();
   if (line.length < 2) return null;
 
   const tip = line[line.length - 1]!;
   const tangent = unit(sub(tip, line[Math.max(0, line.length - 2)]!));
-  const headLen = link.style.headLength;
-  const headW = link.style.headWidth;
-
-  // arrowhead 자리만큼 wedge 끝을 당긴다.
+  const headLen = link.style.head === 'none' ? 0 : link.style.headLength;
   const wedgeEnd = addScaled(tip, tangent, -headLen);
-  const body = trimToLength(line, wedgeEnd);
+  const body = headLen > 0 ? trimToLength(line, wedgeEnd) : line;
 
-  const wedge = wedgePath(body, link.style.widthStart, link.style.widthEnd);
-  const arrowhead = arrowheadPath(tip, tangent, headLen, headW);
-  return { wedge, arrowhead, color: link.style.color };
+  const renderer = rendererRegistry.get(link.type) ?? builtinRenderer(link.type);
+  const paths = renderer({ body, tip, tangent, style: link.style });
+
+  const routed: RoutedLink = { paths };
+  if (link.label) {
+    const p = labelPoint(body, tip, link.labelAt);
+    routed.label = { text: link.label, x: round(p[0], 2), y: round(p[1] - 8, 2) };
+  }
+  return routed;
+}
+
+// ── 타입별 빌트인 렌더러 ─────────────────────────────────────────────────────
+
+function builtinRenderer(type: LinkType): LinkRenderer {
+  switch (type) {
+    case 'wind':
+      return ({ body, tip, tangent, style }) => [
+        { d: strokePath(body), fill: 'none', stroke: style.color, width: 2, dash: dashStr(style.dash) },
+        ...headPaths(tip, tangent, style),
+      ];
+    case 'current':
+      return ({ body, tip, tangent, style }) => [
+        { d: wavyPath(body, 4, Math.max(2, Math.round(body.length / 8))), fill: 'none', stroke: style.color, width: 2.5 },
+        ...headPaths(tip, tangent, style),
+      ];
+    case 'route':
+      return ({ body, style }) => [
+        { d: strokePath(body), fill: 'none', stroke: style.color, width: 1.5, dash: dashStr(style.dash) },
+      ];
+    case 'arrow':
+    default:
+      return ({ body, tip, tangent, style }) => {
+        if (style.head === 'taper') {
+          return [
+            { d: wedgePath(body, style.widthStart, style.widthEnd), fill: style.color, stroke: 'none' },
+            ...headPaths(tip, tangent, style),
+          ];
+        }
+        return [
+          { d: strokePath(body), fill: 'none', stroke: style.color, width: 2 },
+          ...headPaths(tip, tangent, style),
+        ];
+      };
+  }
+}
+
+function headPaths(tip: XY, tangent: XY, style: ArrowStyle): RoutedPath[] {
+  if (style.head === 'none') return [];
+  return [{ d: arrowheadPath(tip, tangent, style.headLength, style.headWidth), fill: style.color, stroke: 'none' }];
+}
+
+function dashStr(dash?: number[]): string | undefined {
+  return dash && dash.length ? dash.join(' ') : undefined;
+}
+
+function labelPoint(body: XY[], tip: XY, at: 'start' | 'mid' | 'end'): XY {
+  if (at === 'start') return body[0]!;
+  if (at === 'end') return tip;
+  return body[Math.floor(body.length / 2)]!;
 }
 
 // ── 샘플링 ───────────────────────────────────────────────────────────────────
@@ -107,7 +185,6 @@ function bezierSamples(camera: Camera, a: XY, b: XY, curve: number): XY[] {
   const mid: XY = [(pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2];
   const dir = sub(pb, pa);
   const len = mag(dir);
-  // 수직 방향으로 curve 만큼 제어점 오프셋.
   const perp: XY = len === 0 ? [0, 0] : [-dir[1] / len, dir[0] / len];
   const ctrl: XY = [mid[0] + perp[0] * curve * len, mid[1] + perp[1] * curve * len];
   const out: XY[] = [];
@@ -122,7 +199,27 @@ function bezierSamples(camera: Camera, a: XY, b: XY, curve: number): XY[] {
   return out;
 }
 
-// ── taper wedge / arrowhead ──────────────────────────────────────────────────
+// ── 외형 path ───────────────────────────────────────────────────────────────
+
+function strokePath(pts: XY[]): string {
+  if (pts.length === 0) return '';
+  return pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${round(p[0], 2)},${round(p[1], 2)}`).join('');
+}
+
+/** 사인 오프셋 물결 stroke (해류). */
+function wavyPath(line: XY[], amp: number, waves: number): string {
+  const n = line.length;
+  if (n < 2) return strokePath(line);
+  const out: XY[] = [];
+  for (let i = 0; i < n; i++) {
+    const t = i / (n - 1);
+    const tan = unit(sub(line[Math.min(i + 1, n - 1)]!, line[Math.max(i - 1, 0)]!));
+    const perp: XY = [-tan[1], tan[0]];
+    const off = amp * Math.sin(t * waves * 2 * Math.PI) * Math.sin(t * Math.PI); // 양끝 진폭 0
+    out.push([line[i]![0] + perp[0] * off, line[i]![1] + perp[1] * off]);
+  }
+  return strokePath(out);
+}
 
 function wedgePath(line: XY[], wStart: number, wEnd: number): string {
   const n = line.length;
@@ -137,8 +234,7 @@ function wedgePath(line: XY[], wStart: number, wEnd: number): string {
     left.push([line[i]![0] + perp[0] * w, line[i]![1] + perp[1] * w]);
     right.push([line[i]![0] - perp[0] * w, line[i]![1] - perp[1] * w]);
   }
-  const pts = [...left, ...right.reverse()];
-  return polygonPath(pts);
+  return polygonPath([...left, ...right.reverse()]);
 }
 
 function arrowheadPath(tip: XY, tangent: XY, len: number, width: number): string {
@@ -151,11 +247,10 @@ function arrowheadPath(tip: XY, tangent: XY, len: number, width: number): string
 
 function polygonPath(pts: XY[]): string {
   if (pts.length === 0) return '';
-  const parts = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${round(p[0], 2)},${round(p[1], 2)}`);
-  return parts.join('') + 'Z';
+  return pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${round(p[0], 2)},${round(p[1], 2)}`).join('') + 'Z';
 }
 
-// ── 점-내포 판정 (화면 좌표 ray casting) ─────────────────────────────────────
+// ── 점-내포 판정 ─────────────────────────────────────────────────────────────
 
 function projectedExteriors(camera: Camera, entity: Entity): XY[][] {
   const rings: XY[][] = [];
@@ -213,10 +308,7 @@ function unit(a: XY): XY {
 function addScaled(a: XY, dir: XY, s: number): XY {
   return [a[0] + dir[0] * s, a[1] + dir[1] * s];
 }
-
-/** line 을 끝점이 target 근처가 되도록 자른다(arrowhead 공간 확보). */
 function trimToLength(line: XY[], end: XY): XY[] {
-  // end 가 마지막 세그먼트 위에 있다고 가정 — 단순히 마지막 점을 end 로 치환.
   if (line.length < 2) return line;
   const out = line.slice(0, line.length - 1);
   out.push(end);
