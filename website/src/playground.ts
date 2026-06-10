@@ -14,7 +14,7 @@ export function mountPlayground(host: HTMLElement): () => void {
       <section class="preview">
         <div class="toolbar"><button id="pg-reset">전체 보기</button></div>
         <div class="map" id="pg-map" data-geoinsight-root="true"></div>
-        <div class="hint">휠: 줌 · 드래그: 팬</div>
+        <div class="hint">휠: 줌 · 드래그: 팬 · 클릭: 국가 추가/제거</div>
       </section>
     </div>
   `;
@@ -41,7 +41,15 @@ export function mountPlayground(host: HTMLElement): () => void {
 
   const render = (source: string): void => {
     if (!instance) {
-      instance = mount(mapEl, source, { interactive: true, onDiagnostics: renderDiagnostics });
+      instance = mount(mapEl, source, {
+        interactive: true,
+        editable: true,
+        // 지도 클릭으로 편집 시 textarea 동기화 (runtime 이 이미 재렌더 → update 호출 금지)
+        onChange: (next) => {
+          textarea.value = next;
+        },
+        onDiagnostics: renderDiagnostics,
+      });
     } else {
       instance.update(source);
       const result = instance.getResult();

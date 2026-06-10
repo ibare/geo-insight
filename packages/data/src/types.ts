@@ -43,9 +43,17 @@ export type ResolveResult =
   | { kind: 'group'; key: string; display: string; features: GeoFeature[] }
   | { kind: 'unknown'; suggestions: string[] };
 
+export interface SearchHit {
+  kind: 'country' | 'group';
+  key: string;
+  display: string;
+}
+
 export interface Resolver {
   /** 이름 → feature 집합 (동기). 미해석/모호는 unknown + suggestions. */
   resolve(name: string): ResolveResult;
+  /** 부분 일치 검색 — 편집 UI 자동완성용. 국가·그룹 후보를 limit 개까지. */
+  search(query: string, limit?: number): SearchHit[];
 }
 
 /**

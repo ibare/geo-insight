@@ -2,6 +2,8 @@
  * 호스트(Tiptap 등) DOM 노드에 GeoInsight 인터랙티브 맵을 마운트하는 어댑터.
  *
  * @geoinsight/runtime 의 vanilla mount 를 감싸 height/editable/테마 힌트를 다룬다.
+ * editable 이면 지도 클릭으로 국가/대륙을 추가·제거하고, 변경된 DSL 을 onChange 로
+ * 호스트에 흘려보낸다(NodeView 가 ProseMirror textContent 로 write-back).
  * React 비종속 — 호스트 React 인스턴스를 끌어들이지 않는다(FACET 패턴).
  */
 
@@ -18,8 +20,10 @@ export interface GeoMountOptions {
   locale?: string;
   /** 호스트 테마 힌트. light 면 밝은 오션으로 오버라이드. */
   theme?: 'light' | 'dark';
-  /** 편집 가능 여부 — 현재는 상호작용(줌/팬)에 영향 없음(탐색은 항상 허용). */
+  /** 편집 가능 여부 — true 면 지도 클릭으로 국가/대륙 추가·제거. */
   editable?: boolean;
+  /** 편집으로 DSL 이 바뀔 때 새 소스 통지 — NodeView 가 textContent 로 write-back. */
+  onChange?: (source: string) => void;
   /** 컴파일 진단 콜백. */
   onDiagnostics?: (d: Diagnostic[]) => void;
 }
@@ -29,7 +33,7 @@ export interface GeoMountHandle {
   setSource(source: string): void;
   /** 캔버스 높이 갱신. */
   setHeight(height: number | undefined): void;
-  /** editable 토글 (현재 패스스루). */
+  /** editable 토글 — 편집 오버레이를 켜고 끈다(재마운트). */
   setEditable(editable: boolean): void;
   /** 엔티티 key 로 카메라 이동. */
   zoomTo(entityKey: string): void;
@@ -51,29 +55,43 @@ export function mountGeoInsight(el: HTMLElement, opts: GeoMountOptions): GeoMoun
   el.setAttribute('data-geoinsight-root', 'true');
   applyHeight(el, opts.initialHeight ?? DEFAULT_HEIGHT);
 
-  const compileOpts: CompileOptions = {};
-  if (opts.theme === 'light') compileOpts.theme = LIGHT_OVERRIDE;
-
-  const instance: GeoInstance = runtimeMount(el, opts.initialSource, {
-    ...compileOpts,
-    interactive: true,
-    ...(opts.onDiagnostics ? { onDiagnostics: opts.onDiagnostics } : {}),
-  });
-
   let currentSource = opts.initialSource;
+  let editable = opts.editable ?? false;
+  let instance: GeoInstance;
+
+  const build = (): void => {
+    const compileOpts: CompileOptions = {};
+    if (opts.theme === 'light') compileOpts.theme = LIGHT_OVERRIDE;
+    instance = runtimeMount(el, currentSource, {
+      ...compileOpts,
+      interactive: true,
+      editable,
+      // 편집으로 바뀐 소스를 기억하고 호스트로 통지. currentSource 를 먼저 갱신해
+      // 직후 들어오는 setSource(PM round-trip)가 no-op 이 되게 한다.
+      onChange: (next) => {
+        currentSource = next;
+        opts.onChange?.(next);
+      },
+      ...(opts.onDiagnostics ? { onDiagnostics: opts.onDiagnostics } : {}),
+    });
+  };
+
+  build();
 
   return {
     setSource(source) {
       if (source === currentSource) return;
       currentSource = source;
-      // runtime mount 는 최초 컴파일 옵션(테마 등)을 클로저로 보존하므로 소스만 넘기면 된다.
       instance.update(source);
     },
     setHeight(height) {
       applyHeight(el, height ?? DEFAULT_HEIGHT);
     },
-    setEditable() {
-      // 줌/팬 탐색은 편집 모드와 무관하게 항상 허용 — no-op (확장 여지).
+    setEditable(next) {
+      if (next === editable) return;
+      editable = next;
+      instance.destroy();
+      build();
     },
     zoomTo(entityKey) {
       instance.zoomTo(entityKey);

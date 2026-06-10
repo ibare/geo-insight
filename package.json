@@ -21,6 +21,10 @@
   },
   "packageManager": "pnpm@10.27.0",
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": ["esbuild"],
+    "overrides": {
+      "@tiptap/core": "3.26.0",
+      "@tiptap/pm": "3.26.0"
+    }
   }
 }

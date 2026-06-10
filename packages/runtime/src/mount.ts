@@ -1,15 +1,21 @@
 /**
  * 바닐라 DOM 마운트 — core 의 정적 SVG 를 컨테이너에 박고 줌/팬으로 하이드레이트.
+ * editable 이면 지도 직접 조작(국가/대륙 추가·제거) 편집 오버레이를 얹는다.
  *
  * 프레임워크 비종속. 호스트 어댑터(host-tiptap)가 이 mount 를 NodeView 안에서 호출.
  */
 
-import { compile, type CompileResult, type InternalOptions } from '@geoinsight/core';
+import { compile, createLocator, type CompileResult, type InternalOptions, type Locator } from '@geoinsight/core';
 import { attachZoomPan, type ViewBox, type ZoomPanController } from './zoom-pan.js';
+import { attachEditing, type EditingController } from './editing.js';
 
 export interface MountOptions extends InternalOptions {
   /** 줌/팬 상호작용 활성화. 기본 true. */
   interactive?: boolean;
+  /** 편집(지도 클릭으로 국가/대륙 추가·제거) 활성화. 기본 false. */
+  editable?: boolean;
+  /** 편집으로 DSL 이 바뀔 때 새 소스 통지 — 호스트가 영속화. */
+  onChange?: (source: string) => void;
   /** 컴파일 진단 콜백. */
   onDiagnostics?: (d: CompileResult['diagnostics']) => void;
 }
@@ -31,17 +37,29 @@ export function mount(
   opts: MountOptions = {},
 ): GeoInstance {
   let controller: ZoomPanController | null = null;
+  let editing: EditingController | null = null;
   let svg: SVGSVGElement | null = null;
   let result: CompileResult | null = null;
+  let currentSource: string | null = typeof src === 'string' ? src : null;
   let destroyed = false;
+  // locate 색인은 비싸지 않지만 편집 재렌더마다 재생성 않도록 공유.
+  let locator: Locator | null = null;
+
+  const teardown = (): void => {
+    editing?.destroy();
+    editing = null;
+    controller?.destroy();
+    controller = null;
+  };
 
   const render = (input: string | CompileResult): void => {
     if (destroyed) return;
     result = typeof input === 'string' ? compile(input, opts) : input;
     if (opts.onDiagnostics) opts.onDiagnostics(result.diagnostics);
 
-    controller?.destroy();
-    el.innerHTML = result.svg;
+    teardown();
+    el.innerHTML = '';
+    el.insertAdjacentHTML('afterbegin', result.svg);
     svg = el.querySelector('svg');
     if (!svg) return;
 
@@ -54,12 +72,30 @@ export function mount(
 
     const vb = result.meta.viewBox as ViewBox;
     controller = attachZoomPan(svg, vb, { interactive: opts.interactive ?? true });
+
+    if (opts.editable && currentSource != null) {
+      if (!locator) locator = createLocator();
+      editing = attachEditing({
+        svg,
+        host: el,
+        getView: () => controller!.getView(),
+        result,
+        getSource: () => currentSource ?? '',
+        locator,
+        applyEdit: (next) => {
+          currentSource = next;
+          render(next);
+          opts.onChange?.(next);
+        },
+      });
+    }
   };
 
   render(src);
 
   return {
     update(next) {
+      if (typeof next === 'string') currentSource = next;
       render(next);
     },
     zoomTo(entityKey) {
@@ -75,8 +111,7 @@ export function mount(
     },
     destroy() {
       destroyed = true;
-      controller?.destroy();
-      controller = null;
+      teardown();
       el.innerHTML = '';
       svg = null;
     },

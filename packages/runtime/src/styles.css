@@ -26,3 +26,52 @@
 [data-geoinsight-root] .gi-label-halo {
   pointer-events: none;
 }
+
+/* 편집 오버레이 */
+[data-geoinsight-root] {
+  position: relative;
+}
+[data-geoinsight-root] .gi-edit-highlight {
+  transition: opacity 0.1s;
+}
+[data-geoinsight-root] .gi-edit-tooltip {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  background: rgba(11, 18, 31, 0.92);
+  color: #e7edf5;
+  border: 1px solid rgba(127, 140, 158, 0.4);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-family: system-ui, sans-serif;
+  white-space: nowrap;
+}
+[data-geoinsight-root] .gi-edit-chips {
+  position: absolute;
+  z-index: 4;
+  left: 10px;
+  top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  max-width: 70%;
+}
+[data-geoinsight-root] .gi-edit-chip {
+  background: rgba(19, 28, 44, 0.85);
+  color: #aab8c8;
+  border: 1px solid rgba(127, 140, 158, 0.35);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-family: system-ui, sans-serif;
+  cursor: pointer;
+}
+[data-geoinsight-root] .gi-edit-chip:hover {
+  border-color: #3fb6ab;
+}
+[data-geoinsight-root] .gi-edit-chip.active {
+  background: #3fb6ab;
+  color: #07121a;
+  border-color: #3fb6ab;
+}

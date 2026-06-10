@@ -5,6 +5,15 @@
 export { compile, type InternalOptions } from './compile.js';
 export { parse } from './parser.js';
 export { registerExtProjection } from './projection.js';
+export { cameraFromMeta, type MetaCamera } from './passes/camera.js';
+export { createLocator, type Locator, type LocatedCountry } from './locate.js';
+export {
+  addShowName,
+  removeShowName,
+  hasShowName,
+  addLink,
+  removeLink,
+} from './edit.js';
 
 export type {
   CompileOptions,
@@ -34,8 +43,11 @@ export { DEFAULT_THEME, COLOR_TOKENS, resolveTheme, resolveColor } from './theme
 export {
   createResolver,
   createDefaultDataSource,
+  GROUP_DEFS,
   type Resolver,
+  type SearchHit,
   type DataSource,
   type GeoFeature,
   type ResolveResult,
+  type GroupDef,
 } from '@geoinsight/data';

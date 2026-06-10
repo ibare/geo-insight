@@ -41,6 +41,27 @@ export function createGeoInsightNodeView(): NodeViewRenderer {
     let currentSource = node.textContent || '';
     let currentHeight: number | null = initialAttrHeight;
     let destroyed = false;
+    /** 자기 dispatch → update 루프 차단 플래그(trama writeBackJson 패턴). */
+    let suppressNextUpdate = false;
+
+    /** 편집(지도 클릭)으로 바뀐 DSL 을 노드 textContent 로 write-back. */
+    const writeBackSource = (source: string): void => {
+      if (destroyed) return;
+      if (source === currentSource) return;
+      const pos = typeof getPos === 'function' ? getPos() : undefined;
+      if (typeof pos !== 'number') return;
+      const view = editor.view;
+      const $node = view.state.doc.nodeAt(pos);
+      if (!$node) return;
+      currentSource = source;
+      suppressNextUpdate = true;
+      const from = pos + 1;
+      const to = pos + 1 + $node.content.size;
+      const tr = source
+        ? view.state.tr.replaceWith(from, to, view.state.schema.text(source))
+        : view.state.tr.delete(from, to);
+      view.dispatch(tr);
+    };
 
     const handle: GeoMountHandle = mountGeoInsight(mount, {
       initialSource: currentSource,
@@ -48,6 +69,7 @@ export function createGeoInsightNodeView(): NodeViewRenderer {
       locale: opts.locale,
       theme: opts.theme,
       editable: editor.options.editable,
+      onChange: writeBackSource,
     });
 
     // ── 높이 리사이즈 핸들 ──
@@ -107,7 +129,11 @@ export function createGeoInsightNodeView(): NodeViewRenderer {
           currentHeight = newHeight;
           handle.setHeight(newHeight ?? DEFAULT_HEIGHT);
         }
-        if (newSource !== currentSource) {
+        if (suppressNextUpdate) {
+          // 자기 write-back 의 echo — 소스만 동기화하고 재렌더는 건너뛴다.
+          suppressNextUpdate = false;
+          currentSource = newSource;
+        } else if (newSource !== currentSource) {
           currentSource = newSource;
           handle.setSource(newSource);
         }

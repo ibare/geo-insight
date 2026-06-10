@@ -12,7 +12,7 @@
 
 import { createDefaultDataSource, rawCountries, type RawCountry } from './countries.js';
 import { GROUP_BY_ALIAS, GROUP_DEFS, normalizeName } from './groups.js';
-import type { DataSource, GeoFeature, ResolveResult, Resolver } from './types.js';
+import type { DataSource, GeoFeature, ResolveResult, Resolver, SearchHit } from './types.js';
 
 interface NameIndexEntry {
   ccn3: string;
@@ -124,6 +124,49 @@ export function createResolver(opts: ResolverOptions = {}): Resolver {
       ).map((g) => g.display);
 
       return { kind: 'unknown', suggestions: dedupeSorted(groupSuggest) };
+    },
+
+    search(query: string, limit = 10): SearchHit[] {
+      const q = normalizeName(query);
+      if (!q) return [];
+      const hits: SearchHit[] = [];
+      const seen = new Set<string>();
+
+      // 그룹(대륙/권역) 먼저
+      for (const g of GROUP_DEFS) {
+        if (g.aliases.some((a) => normalizeName(a).includes(q)) && !seen.has(g.key)) {
+          seen.add(g.key);
+          hits.push({ kind: 'group', key: g.key, display: g.display });
+        }
+      }
+
+      // 국가 — 정확>접두>부분, 독립 주권국 가산
+      const scored: Array<{ hit: SearchHit; score: number }> = [];
+      for (const c of countries) {
+        const display = c.translations.kor?.common ?? c.name.common;
+        const names = [c.translations.kor?.common, c.name.common, c.cca2, c.cca3];
+        let best = 0;
+        for (const nm of names) {
+          if (!nm) continue;
+          const n = normalizeName(nm);
+          if (n === q) best = Math.max(best, 3);
+          else if (n.startsWith(q)) best = Math.max(best, 2);
+          else if (n.includes(q)) best = Math.max(best, 1);
+        }
+        if (best > 0 && !seen.has(c.ccn3)) {
+          scored.push({
+            hit: { kind: 'country', key: c.ccn3, display },
+            score: best + (c.independent && c.unMember ? 0.5 : 0),
+          });
+        }
+      }
+      scored.sort((a, b) => b.score - a.score || a.hit.display.localeCompare(b.hit.display, 'ko'));
+      for (const s of scored) {
+        if (seen.has(s.hit.key)) continue;
+        seen.add(s.hit.key);
+        hits.push(s.hit);
+      }
+      return hits.slice(0, limit);
     },
   };
 }

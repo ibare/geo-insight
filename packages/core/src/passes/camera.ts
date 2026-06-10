@@ -171,4 +171,36 @@ function bboxPolygon([w, s, e, n]: [number, number, number, number]): unknown {
   return { type: 'Polygon', coordinates: [ring] };
 }
 
+/**
+ * meta.projectionParams 로 투영을 재구성한 카메라 — 런타임이 hover 하이라이트
+ * (feature → path)와 클릭 역변환(unproject)에 쓴다. fitExtent 를 다시 돌리지 않고
+ * scale/translate/rotate 를 그대로 복원하므로 emit 과 동일한 좌표계를 보장한다.
+ */
+export interface MetaCamera {
+  project(lonlat: [number, number]): [number, number] | null;
+  unproject(xy: [number, number]): [number, number] | null;
+  path(object: unknown): string;
+}
+
+export function cameraFromMeta(meta: SceneMeta): MetaCamera {
+  const { type, rotate, scale, translate } = meta.projectionParams;
+  const { projection } = createProjection(type);
+  projection.rotate(rotate).scale(scale).translate(translate);
+  const path = createPathString(projection, meta.precision);
+  const fn = projection as (xy: [number, number]) => [number, number] | null;
+  return {
+    project(ll) {
+      const p = fn(ll);
+      if (!p || !Number.isFinite(p[0]) || !Number.isFinite(p[1])) return null;
+      return [round(p[0], meta.precision), round(p[1], meta.precision)];
+    },
+    unproject(xy) {
+      const inv = projection.invert?.(xy);
+      if (!inv || !Number.isFinite(inv[0]) || !Number.isFinite(inv[1])) return null;
+      return [inv[0], inv[1]];
+    },
+    path,
+  };
+}
+
 export type { Projection };

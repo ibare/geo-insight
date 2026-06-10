@@ -6,6 +6,7 @@ export type {
   GeoFeature,
   ResolveResult,
   Resolver,
+  SearchHit,
   DataSource,
 } from './types.js';
 
