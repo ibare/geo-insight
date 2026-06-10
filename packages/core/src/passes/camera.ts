@@ -10,6 +10,7 @@
 
 import type { GeoFeature, Resolver } from '@geoinsight/data';
 import { createResolver, normalizeName } from '@geoinsight/data';
+import { geoPath } from 'd3-geo';
 import { centroidOf, largestPolygon } from '../geometry.js';
 import { createPathString, createProjection, type Projection, round } from '../projection.js';
 import type { Entity, ProjectionType, SceneMeta } from '../types.js';
@@ -180,6 +181,8 @@ export interface MetaCamera {
   project(lonlat: [number, number]): [number, number] | null;
   unproject(xy: [number, number]): [number, number] | null;
   path(object: unknown): string;
+  /** GeoJSON 객체의 화면(viewBox) 좌표 bbox [[x0,y0],[x1,y1]]. 비유한이면 null. */
+  bounds(object: unknown): [[number, number], [number, number]] | null;
 }
 
 export function cameraFromMeta(meta: SceneMeta): MetaCamera {
@@ -187,6 +190,7 @@ export function cameraFromMeta(meta: SceneMeta): MetaCamera {
   const { projection } = createProjection(type);
   projection.rotate(rotate).scale(scale).translate(translate);
   const path = createPathString(projection, meta.precision);
+  const pathGen = geoPath(projection);
   const fn = projection as (xy: [number, number]) => [number, number] | null;
   return {
     project(ll) {
@@ -200,6 +204,11 @@ export function cameraFromMeta(meta: SceneMeta): MetaCamera {
       return [inv[0], inv[1]];
     },
     path,
+    bounds(object) {
+      const b = pathGen.bounds(object as never);
+      if (!b.every((p) => p.every(Number.isFinite))) return null;
+      return b as [[number, number], [number, number]];
+    },
   };
 }
 

@@ -21,6 +21,14 @@ export interface ZoomPanOptions {
   maxZoom?: number;
   /** 상호작용 활성화. 기본 true. */
   interactive?: boolean;
+  /**
+   * 줌아웃 한계 + 팬 가능 영역(전세계 투영 범위). 기본은 base(=fit 프레임).
+   *
+   * fit:dominant 로 특정 국가에 타이트하게 프레이밍돼도, 렌더된 SVG 에는 전세계가
+   * 그려져 있으므로 이 값을 전세계 sphere 범위로 주면 선택 상태와 무관하게 지구
+   * 수준까지 줌아웃해 다른 지역을 탐색할 수 있다.
+   */
+  outerBounds?: ViewBox;
 }
 
 export function attachZoomPan(
@@ -30,8 +38,11 @@ export function attachZoomPan(
 ): ZoomPanController {
   const maxZoom = opts.maxZoom ?? 12;
   const interactive = opts.interactive ?? true;
+  const aspect = base[3] / base[2];
+  const outer = opts.outerBounds ?? base;
   const minW = base[2] / maxZoom;
-  const maxW = base[2];
+  // 줌아웃 최대치: 전세계가 가로·세로 모두 들어오도록(종횡비 고정 보정).
+  const maxW = Math.max(base[2], outer[2], outer[3] / aspect);
 
   let view: ViewBox = [...base] as ViewBox;
 
@@ -41,14 +52,11 @@ export function attachZoomPan(
 
   const setView = (v: ViewBox) => {
     // 너비 클램프 + 종횡비 고정(base 비율 유지)
-    const aspect = base[3] / base[2];
     let w = clamp(v[2], minW, maxW);
     let h = w * aspect;
-    let x = v[0];
-    let y = v[1];
-    // 프레임 밖으로 너무 벗어나지 않게 살짝 클램프
-    x = clamp(x, base[0] - w, base[0] + base[2]);
-    y = clamp(y, base[1] - h, base[1] + base[3]);
+    // 팬 가능 영역: 전세계 범위 + 한 화면만큼의 여유.
+    const x = clamp(v[0], outer[0] - w, outer[0] + outer[2]);
+    const y = clamp(v[1], outer[1] - h, outer[1] + outer[3]);
     view = [x, y, w, h];
     applyView();
   };

@@ -5,7 +5,14 @@
  * 프레임워크 비종속. 호스트 어댑터(host-tiptap)가 이 mount 를 NodeView 안에서 호출.
  */
 
-import { compile, createLocator, type CompileResult, type InternalOptions, type Locator } from '@geoinsight/core';
+import {
+  cameraFromMeta,
+  compile,
+  createLocator,
+  type CompileResult,
+  type InternalOptions,
+  type Locator,
+} from '@geoinsight/core';
 import { attachZoomPan, type ViewBox, type ZoomPanController } from './zoom-pan.js';
 import { attachEditing, type EditingController } from './editing.js';
 
@@ -71,7 +78,9 @@ export function mount(
     svg.style.display = 'block';
 
     const vb = result.meta.viewBox as ViewBox;
-    controller = attachZoomPan(svg, vb, { interactive: opts.interactive ?? true });
+    // 줌아웃 한계를 전세계 투영 범위로 — 선택 국가에 타이트하게 fit 돼도 지구 수준까지 탐색 가능.
+    const outer = worldBounds(result) ?? vb;
+    controller = attachZoomPan(svg, vb, { interactive: opts.interactive ?? true, outerBounds: outer });
 
     if (opts.editable && currentSource != null) {
       if (!locator) locator = createLocator();
@@ -117,6 +126,13 @@ export function mount(
     },
     getResult: () => result,
   };
+}
+
+/** 전세계 sphere 의 화면 좌표 bbox → ViewBox. 비유한이면 null(폴백은 호출부). */
+function worldBounds(result: CompileResult): ViewBox | null {
+  const b = cameraFromMeta(result.meta).bounds({ type: 'Sphere' });
+  if (!b) return null;
+  return [b[0][0], b[0][1], b[1][0] - b[0][0], b[1][1] - b[0][1]];
 }
 
 /** CSS.escape 폴백 (속성 셀렉터용). */
