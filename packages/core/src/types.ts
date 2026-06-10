@@ -64,6 +64,8 @@ export interface Theme {
   label: { fill: string; halo: string; font: string; size: number };
   /** 5대양 라벨(항상 표시) 스타일. */
   oceanLabel: { fill: string; size: number; spacing: number };
+  /** ADM1/2 시각 구분 — 강조된 행정구역 fill + 소속 국가 인접구역 경계(배경). */
+  subdivision: { fill: string; stroke: string; contextStroke: string };
   /** named 토큰(amber/coral/teal 등) → hex. */
   tokens: Record<string, string>;
 }
@@ -85,6 +87,10 @@ export interface Entity {
   bbox: [number, number, number, number];
   /** 레이어 순서 (작을수록 아래). */
   z: number;
+  /** 행정 레벨 — 0=국가(기본), 1=ADM1(주/도), 2=ADM2(시/군). */
+  level: 0 | 1 | 2;
+  /** ADM1/2 의 소속 국가 ccn3 (level>0 일 때). */
+  adm0?: string;
   style: ResolvedStyle;
 }
 

@@ -171,7 +171,8 @@ export function buildScene(ast: Ast, opts: BuildOptions): BuiltScene {
     keyByName.set(normalizeName(rawName), res.key);
     if (entitiesByKey.has(res.key)) continue;
     if (res.kind === 'group') inferredGroupKeys.add(res.key);
-    entitiesByKey.set(res.key, {
+    const level = levelOf(res.features);
+    const ent: Entity = {
       key: res.key,
       display: rawName,
       role: res.kind === 'group' ? 'group' : 'plain',
@@ -179,8 +180,11 @@ export function buildScene(ast: Ast, opts: BuildOptions): BuiltScene {
       centroid: [0, 0],
       bbox: [0, 0, 0, 0],
       z: 0,
+      level,
       style: neutralStyle(theme),
-    });
+    };
+    if (level > 0 && res.kind === 'adm1') ent.adm0 = res.adm0;
+    entitiesByKey.set(res.key, ent);
   }
 
   // 4. 명시 역할/스타일 적용
@@ -219,8 +223,8 @@ export function buildScene(ast: Ast, opts: BuildOptions): BuiltScene {
     const base = ent.role === 'group' ? 0 : ent.role === 'focus' ? 2 : 1;
     ent.z = base * 1000 + i;
 
-    // 스타일 기본값(역할별) → 명시 props 오버라이드
-    ent.style = defaultStyleFor(ent.role, theme, ent.role === 'group' ? groupIdx : focusIdx);
+    // 스타일 기본값(역할별, ADM1 구분) → 명시 props 오버라이드
+    ent.style = defaultStyleFor(ent.role, theme, ent.role === 'group' ? groupIdx : focusIdx, ent.level);
     if (ent.role === 'group') groupIdx++;
     if (ent.role === 'focus') focusIdx++;
     const props = explicitStyleProps.get(ent.key);
@@ -348,7 +352,21 @@ function neutralStyle(theme: Theme): ResolvedStyle {
   return { fill: theme.worldFaint, stroke: theme.worldStroke, borders: true, label: true, opacity: 1 };
 }
 
-function defaultStyleFor(role: Role, theme: Theme, idx: number): ResolvedStyle {
+/** feature 집합의 행정 레벨 (가장 큰 값). 국가=0, ADM1=1, ADM2=2. */
+function levelOf(features: { properties: { level?: 0 | 1 | 2 } }[]): 0 | 1 | 2 {
+  let lvl: 0 | 1 | 2 = 0;
+  for (const f of features) {
+    const l = f.properties.level ?? 0;
+    if (l > lvl) lvl = l;
+  }
+  return lvl;
+}
+
+function defaultStyleFor(role: Role, theme: Theme, idx: number, level: 0 | 1 | 2 = 0): ResolvedStyle {
+  // ADM1/2 가 plain 으로 추론되면 국가 슬레이트가 아니라 강조색으로 — 국가 배경과 구분.
+  if (role === 'plain' && level > 0) {
+    return { fill: theme.subdivision.fill, stroke: theme.subdivision.stroke, borders: true, label: true, opacity: 1 };
+  }
   if (role === 'group') {
     return {
       fill: theme.groupPalette[idx % theme.groupPalette.length]!,

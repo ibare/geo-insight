@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createDefaultDataSource, createResolver } from '@geoinsight/data';
 import { loadAdm1FromDisk } from '@geoinsight/data/node';
 import { compile } from '../src/compile.js';
+import { DEFAULT_THEME } from '../src/theme.js';
 
 function usDataSource() {
   const ds = createDefaultDataSource();
@@ -29,6 +30,32 @@ describe('ADM1 렌더 통합', () => {
     }
     // 엔티티 path 가 SVG 에 들어간다
     expect(svg).toContain('gi-entity');
+  });
+
+  it('ADM1 시각 구분 — 강조 fill + level + 인접구역 배경 레이어', () => {
+    const ds = usDataSource();
+    const r = createResolver({ dataSource: ds });
+    const { scene, svg } = compile('earth:\n  show: California, Texas', { dataSource: ds, resolver: r });
+    for (const e of scene.entities) {
+      expect(e.level).toBe(1);
+      expect(e.adm0).toBe('840');
+      // 명시 스타일 없는 ADM1 plain 은 국가 슬레이트가 아니라 subdivision 강조색.
+      expect(e.style.fill).toBe(DEFAULT_THEME.subdivision.fill);
+      expect(e.style.fill).not.toBe(DEFAULT_THEME.tokens.slate);
+    }
+    // 소속 국가(840)의 인접 주 경계 배경 레이어가 한 번 깔린다.
+    const subs = svg.match(/class="gi-subdivisions" data-adm0="840"/g) ?? [];
+    expect(subs).toHaveLength(1);
+  });
+
+  it('명시 focus 는 강조색 우선 (ADM1 기본 위에 override)', () => {
+    const ds = usDataSource();
+    const r = createResolver({ dataSource: ds });
+    const { scene } = compile('earth:\n  show: California\n  focus California { fill: coral }', {
+      dataSource: ds,
+      resolver: r,
+    });
+    expect(scene.entities[0]!.style.fill).toBe(DEFAULT_THEME.tokens.coral);
   });
 
   it('ADM1 미로드 국가의 주 이름은 미해석(에러 진단)', () => {

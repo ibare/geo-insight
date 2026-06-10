@@ -71,6 +71,28 @@ export function emit(input: EmitInput): string {
     out.push('</g>');
   }
 
+  // 3.6 행정구역 맥락 — ADM1 이 표시된 국가의 전체 주/도 경계를 옅게 깔아
+  //      "어느 국가의 어느 주" 인지 읽히게 한다(엔티티 fill 아래).
+  const admCountries = new Set<string>();
+  for (const ent of entities) {
+    if (ent.level > 0 && ent.adm0) admCountries.add(ent.adm0);
+  }
+  for (const ccn3 of admCountries) {
+    const subs = dataSource.adm1(ccn3);
+    if (subs.length === 0) continue;
+    const d = camera.path({ type: 'FeatureCollection', features: subs });
+    if (d)
+      out.push(
+        path(d, {
+          class: 'gi-subdivisions',
+          'data-adm0': ccn3,
+          fill: 'none',
+          stroke: theme.subdivision.contextStroke,
+          'stroke-width': '0.4',
+        }),
+      );
+  }
+
   // 4. 엔티티 (z 순서 — 이미 정렬됨)
   for (const ent of entities) {
     const d = camera.path({ type: 'FeatureCollection', features: ent.features });
