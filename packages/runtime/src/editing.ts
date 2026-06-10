@@ -1,21 +1,25 @@
 /**
- * 편집 오버레이 — 지도 직접 조작으로 국가/대륙 추가·제거.
+ * 편집 오버레이 — 지도 직접 조작으로 국가/대륙/링크 추가·제거.
  *
  * 클릭 위치를 cameraFromMeta 의 unproject 로 위경도로 바꾸고, locate(geoContains)로
- * 어느 국가인지 알아낸다. hover 시 그 국가를 하이라이트 + 툴팁, 클릭 시 DSL 의 show
- * 리스트를 토글한다. 대륙/권역은 클릭으로 식별되지 않으므로 코너 퀵칩으로 보완.
- *
- * 줌/팬과 공존: 짧은 클릭만 토글로 처리(이동거리 임계값), 드래그는 zoom-pan 이 팬.
+ * 어느 국가인지 알아낸다.
+ *  - 미선택 국가 클릭 → show 에 추가.
+ *  - 선택된 국가(엔티티) 클릭 → 컨텍스트 메뉴: 다른 선택 국가와 연결/해제, 또는 제거.
+ *  - 대륙/권역은 코너 퀵칩으로 토글.
+ * hover 시 커서 아래 국가를 하이라이트 + 툴팁. 줌/팬과 공존(짧은 클릭만 처리).
  */
 
 import {
+  addLink,
   addShowName,
   cameraFromMeta,
   createLocator,
   GROUP_DEFS,
   hasShowName,
+  removeLink,
   removeShowName,
   type CompileResult,
+  type Entity,
   type LocatedCountry,
   type Locator,
   type MetaCamera,
@@ -39,7 +43,6 @@ export interface EditingController {
   destroy(): void;
 }
 
-/** 퀵칩으로 노출할 주요 대륙/권역 key. */
 const CHIP_KEYS = [
   'group:asia',
   'group:europe',
@@ -58,7 +61,7 @@ export function attachEditing(params: EditingParams): EditingController {
   const locator = params.locator ?? createLocator();
   const scene = result.scene;
 
-  // ── 하이라이트 path (지도 좌표계 = viewBox 좌표, 줌/팬에 따라 자동 정렬) ──
+  // ── 하이라이트 path (지도 좌표계 = viewBox, 줌/팬에 자동 정렬) ──
   const highlight = document.createElementNS(SVG_NS, 'path');
   highlight.setAttribute('class', 'gi-edit-highlight');
   highlight.setAttribute('fill', 'rgba(255,255,255,0.18)');
@@ -74,7 +77,7 @@ export function attachEditing(params: EditingParams): EditingController {
   tooltip.style.display = 'none';
   host.appendChild(tooltip);
 
-  // ── 대륙 퀵칩 툴바 ──
+  // ── 대륙 퀵칩 ──
   const toolbar = document.createElement('div');
   toolbar.className = 'gi-edit-chips';
   const chipEls: Array<{ el: HTMLButtonElement; name: string }> = [];
@@ -92,14 +95,103 @@ export function attachEditing(params: EditingParams): EditingController {
     chipEls.push({ el: chip, name: def.display });
   }
   host.appendChild(toolbar);
+  for (const { el, name } of chipEls) el.classList.toggle('active', hasShowName(getSource(), name));
 
-  const refreshChips = (): void => {
-    const src = getSource();
-    for (const { el, name } of chipEls) {
-      el.classList.toggle('active', hasShowName(src, name));
-    }
+  // ── 컨텍스트 메뉴 ──
+  let menuEl: HTMLElement | null = null;
+  let backdropEl: HTMLElement | null = null;
+
+  const closeMenu = (): void => {
+    menuEl?.remove();
+    backdropEl?.remove();
+    menuEl = null;
+    backdropEl = null;
   };
-  refreshChips();
+
+  const openMenu = (entity: Entity, clientX: number, clientY: number): void => {
+    closeMenu();
+    const backdrop = document.createElement('div');
+    backdrop.className = 'gi-edit-backdrop';
+    backdrop.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      closeMenu();
+    });
+    host.appendChild(backdrop);
+
+    const menu = document.createElement('div');
+    menu.className = 'gi-edit-menu';
+
+    const title = document.createElement('div');
+    title.className = 'gi-edit-menu-title';
+    title.textContent = entity.display;
+    menu.appendChild(title);
+
+    const others = scene.entities.filter((e) => e.key !== entity.key);
+    if (others.length > 0) {
+      const section = document.createElement('div');
+      section.className = 'gi-edit-menu-section';
+      section.textContent = '연결 / 해제';
+      menu.appendChild(section);
+      for (const other of others) {
+        const connected = isLinked(entity.key, other.key);
+        const item = document.createElement('button');
+        item.className = `gi-edit-menu-item${connected ? ' connected' : ''}`;
+        item.textContent = `${connected ? '✓ ' : ''}${other.display}`;
+        item.addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleLink(entity, other, connected);
+        });
+        menu.appendChild(item);
+      }
+    } else {
+      const hint = document.createElement('div');
+      hint.className = 'gi-edit-menu-hint';
+      hint.textContent = '연결할 다른 선택 항목이 없습니다';
+      menu.appendChild(hint);
+    }
+
+    const sep = document.createElement('div');
+    sep.className = 'gi-edit-menu-sep';
+    menu.appendChild(sep);
+
+    const removeItem = document.createElement('button');
+    removeItem.className = 'gi-edit-menu-item danger';
+    removeItem.textContent = '이 국가 제거';
+    removeItem.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const next = removeShowName(getSource(), entity.display);
+      if (next !== getSource()) applyEdit(next);
+      else closeMenu();
+    });
+    menu.appendChild(removeItem);
+
+    host.appendChild(menu);
+
+    // 위치(호스트 내 클램프)
+    const hostRect = host.getBoundingClientRect();
+    const mw = menu.offsetWidth || 180;
+    const mh = menu.offsetHeight || 160;
+    const left = Math.min(clientX - hostRect.left, Math.max(0, hostRect.width - mw - 4));
+    const top = Math.min(clientY - hostRect.top, Math.max(0, hostRect.height - mh - 4));
+    menu.style.left = `${Math.max(4, left)}px`;
+    menu.style.top = `${Math.max(4, top)}px`;
+  };
+
+  function isLinked(a: string, b: string): boolean {
+    return scene.links.some(
+      (l) => (l.from === a && l.to === b) || (l.from === b && l.to === a),
+    );
+  }
+
+  function toggleLink(a: Entity, other: Entity, connected: boolean): void {
+    const src = getSource();
+    // 양방향 모두 시도(표기/방향 차이 흡수).
+    const next = connected
+      ? removeLink(removeLink(src, a.display, other.display), other.display, a.display)
+      : addLink(src, a.display, other.display);
+    if (next !== src) applyEdit(next);
+    else closeMenu();
+  }
 
   // ── 좌표 변환 (preserveAspectRatio=xMidYMid meet 보정) ──
   const clientToBase = (clientX: number, clientY: number): [number, number] | null => {
@@ -120,9 +212,13 @@ export function attachEditing(params: EditingParams): EditingController {
       offX = 0;
       offY = (rect.height - view[3] * scale) / 2;
     }
-    const px = clientX - rect.left;
-    const py = clientY - rect.top;
-    return [view[0] + (px - offX) / scale, view[1] + (py - offY) / scale];
+    return [view[0] + (clientX - rect.left - offX) / scale, view[1] + (clientY - rect.top - offY) / scale];
+  };
+
+  const hitAt = (clientX: number, clientY: number): LocatedCountry | null => {
+    const base = clientToBase(clientX, clientY);
+    const ll = base ? cam.unproject(base) : null;
+    return ll ? locator.locate(ll) : null;
   };
 
   // ── hover ──
@@ -132,11 +228,8 @@ export function attachEditing(params: EditingParams): EditingController {
 
   const processHover = (): void => {
     rafId = 0;
-    if (!pending) return;
-    const base = clientToBase(pending.x, pending.y);
-    const ll = base ? cam.unproject(base) : null;
-    const hit = ll ? locator.locate(ll) : null;
-
+    if (!pending || menuEl) return;
+    const hit = hitAt(pending.x, pending.y);
     if (hit?.key !== hovered?.key) {
       hovered = hit;
       if (hit) {
@@ -148,7 +241,7 @@ export function attachEditing(params: EditingParams): EditingController {
     }
     if (hit) {
       const present = isIndividuallyShown(hit.key);
-      tooltip.textContent = `${hit.display}  ${present ? '− 제거' : '+ 추가'}`;
+      tooltip.textContent = `${hit.display}  ${present ? '· 클릭: 연결/제거' : '+ 추가'}`;
       tooltip.style.display = '';
       const rect = host.getBoundingClientRect();
       tooltip.style.left = `${pending.x - rect.left + 12}px`;
@@ -169,7 +262,7 @@ export function attachEditing(params: EditingParams): EditingController {
     tooltip.style.display = 'none';
   };
 
-  // ── 클릭(드래그 아님) 토글 ──
+  // ── 클릭(드래그 아님) ──
   let downX = 0;
   let downY = 0;
   let downActive = false;
@@ -181,13 +274,19 @@ export function attachEditing(params: EditingParams): EditingController {
   const onUp = (e: PointerEvent): void => {
     if (!downActive) return;
     downActive = false;
-    const moved = Math.hypot(e.clientX - downX, e.clientY - downY);
-    if (moved > CLICK_MOVE_THRESHOLD) return; // 팬으로 간주
-    const base = clientToBase(e.clientX, e.clientY);
-    const ll = base ? cam.unproject(base) : null;
-    const hit = ll ? locator.locate(ll) : null;
+    if (menuEl) return; // 메뉴 열림 중 — backdrop 가 처리
+    if (Math.hypot(e.clientX - downX, e.clientY - downY) > CLICK_MOVE_THRESHOLD) return; // 팬
+    const hit = hitAt(e.clientX, e.clientY);
     if (!hit) return;
-    toggleCountry(hit);
+    const entity = scene.entities.find((en) => en.key === hit.key);
+    if (entity) {
+      onLeave();
+      openMenu(entity, e.clientX, e.clientY);
+    } else {
+      const src = getSource();
+      const next = addShowName(src, hit.display);
+      if (next !== src) applyEdit(next);
+    }
   };
 
   svg.addEventListener('pointermove', onMove);
@@ -197,13 +296,6 @@ export function attachEditing(params: EditingParams): EditingController {
 
   function isIndividuallyShown(key: string): boolean {
     return scene.entities.some((entity) => entity.key === key);
-  }
-
-  function toggleCountry(hit: LocatedCountry): void {
-    const src = getSource();
-    const existing = scene.entities.find((e) => e.key === hit.key);
-    const next = existing ? removeShowName(src, existing.display) : addShowName(src, hit.display);
-    if (next !== src) applyEdit(next);
   }
 
   function toggleName(name: string): void {
@@ -219,6 +311,7 @@ export function attachEditing(params: EditingParams): EditingController {
       svg.removeEventListener('pointerleave', onLeave);
       svg.removeEventListener('pointerdown', onDown);
       svg.removeEventListener('pointerup', onUp);
+      closeMenu();
       highlight.remove();
       tooltip.remove();
       toolbar.remove();

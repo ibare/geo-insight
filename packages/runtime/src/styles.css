@@ -75,3 +75,69 @@
   color: #07121a;
   border-color: #3fb6ab;
 }
+
+/* 컨텍스트 메뉴 */
+[data-geoinsight-root] .gi-edit-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+}
+[data-geoinsight-root] .gi-edit-menu {
+  position: absolute;
+  z-index: 7;
+  min-width: 160px;
+  max-width: 240px;
+  max-height: 70%;
+  overflow: auto;
+  background: rgba(15, 23, 38, 0.98);
+  border: 1px solid rgba(127, 140, 158, 0.45);
+  border-radius: 8px;
+  padding: 5px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  font-family: system-ui, sans-serif;
+}
+[data-geoinsight-root] .gi-edit-menu-title {
+  padding: 5px 9px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #eef2f7;
+}
+[data-geoinsight-root] .gi-edit-menu-section {
+  padding: 4px 9px 2px;
+  font-size: 11px;
+  color: #8a99ad;
+}
+[data-geoinsight-root] .gi-edit-menu-hint {
+  padding: 4px 9px 8px;
+  font-size: 12px;
+  color: #6b7889;
+}
+[data-geoinsight-root] .gi-edit-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: #cdd6e2;
+  border: none;
+  border-radius: 5px;
+  padding: 6px 9px;
+  font-size: 13px;
+  cursor: pointer;
+}
+[data-geoinsight-root] .gi-edit-menu-item:hover {
+  background: rgba(63, 182, 171, 0.16);
+}
+[data-geoinsight-root] .gi-edit-menu-item.connected {
+  color: #3fb6ab;
+}
+[data-geoinsight-root] .gi-edit-menu-item.danger {
+  color: #e1604f;
+}
+[data-geoinsight-root] .gi-edit-menu-item.danger:hover {
+  background: rgba(225, 96, 79, 0.16);
+}
+[data-geoinsight-root] .gi-edit-menu-sep {
+  height: 1px;
+  margin: 4px 0;
+  background: rgba(127, 140, 158, 0.25);
+}

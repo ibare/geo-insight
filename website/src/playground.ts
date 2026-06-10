@@ -14,7 +14,7 @@ export function mountPlayground(host: HTMLElement): () => void {
       <section class="preview">
         <div class="toolbar"><button id="pg-reset">전체 보기</button></div>
         <div class="map" id="pg-map" data-geoinsight-root="true"></div>
-        <div class="hint">휠: 줌 · 드래그: 팬 · 클릭: 국가 추가/제거</div>
+        <div class="hint">휠: 줌 · 드래그: 팬 · 국가 클릭: 추가 · 선택된 국가 클릭: 연결/제거 메뉴</div>
       </section>
     </div>
   `;

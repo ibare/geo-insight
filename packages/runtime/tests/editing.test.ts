@@ -80,3 +80,83 @@ describe('editing — 지도 클릭으로 국가 토글', () => {
     instance.destroy();
   });
 });
+
+describe('editing — 선택된 국가 메뉴(링크)', () => {
+  /** 선택된 국가(수단) 클릭 → 메뉴 오픈 헬퍼. */
+  function clickSudan(el: HTMLElement, instance: ReturnType<typeof mount>): void {
+    const svg = el.querySelector('svg')!;
+    const meta = instance.getResult()!.meta;
+    stubRect(svg, meta.width, meta.height);
+    const cam = cameraFromMeta(meta);
+    const px = cam.project([30, 15])!;
+    svg.dispatchEvent(new MouseEvent('pointerdown', { clientX: px[0], clientY: px[1], bubbles: true }));
+    svg.dispatchEvent(new MouseEvent('pointerup', { clientX: px[0], clientY: px[1], bubbles: true }));
+  }
+
+  it('선택된 국가 클릭 시 다른 선택 국가 목록 메뉴가 뜬다', () => {
+    const el = document.createElement('div');
+    const instance = mount(el, 'earth:\n  show: 수단, 인도', { editable: true });
+    clickSudan(el, instance);
+    const menu = el.querySelector('.gi-edit-menu');
+    expect(menu).toBeTruthy();
+    const items = [...el.querySelectorAll('.gi-edit-menu-item')].map((n) => n.textContent ?? '');
+    expect(items.some((t) => t.includes('인도'))).toBe(true);
+    expect(items.some((t) => t.includes('제거'))).toBe(true);
+    instance.destroy();
+  });
+
+  it('메뉴에서 국가 선택 → link 추가', () => {
+    const el = document.createElement('div');
+    let lastSource = '';
+    const instance = mount(el, 'earth:\n  show: 수단, 인도', {
+      editable: true,
+      onChange: (s) => {
+        lastSource = s;
+      },
+    });
+    clickSudan(el, instance);
+    const indiaItem = [...el.querySelectorAll<HTMLButtonElement>('.gi-edit-menu-item')].find(
+      (n) => (n.textContent ?? '').includes('인도'),
+    )!;
+    indiaItem.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(lastSource).toContain('link: 수단 -> 인도');
+    instance.destroy();
+  });
+
+  it('이미 연결된 국가 선택 → link 해제', () => {
+    const el = document.createElement('div');
+    let lastSource = '';
+    const instance = mount(el, 'earth:\n  show: 수단, 인도\n  link: 수단 -> 인도', {
+      editable: true,
+      onChange: (s) => {
+        lastSource = s;
+      },
+    });
+    clickSudan(el, instance);
+    const indiaItem = [...el.querySelectorAll<HTMLButtonElement>('.gi-edit-menu-item')].find(
+      (n) => (n.textContent ?? '').includes('인도'),
+    )!;
+    // 연결됨 표시(✓)
+    expect(indiaItem.classList.contains('connected')).toBe(true);
+    indiaItem.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(lastSource).not.toContain('link:');
+    instance.destroy();
+  });
+
+  it('메뉴 제거 항목 → show 에서 제거', () => {
+    const el = document.createElement('div');
+    let lastSource = '';
+    const instance = mount(el, 'earth:\n  show: 수단, 인도', {
+      editable: true,
+      onChange: (s) => {
+        lastSource = s;
+      },
+    });
+    clickSudan(el, instance);
+    const removeItem = el.querySelector<HTMLButtonElement>('.gi-edit-menu-item.danger')!;
+    removeItem.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(lastSource).not.toContain('수단');
+    expect(lastSource).toContain('인도');
+    instance.destroy();
+  });
+});
