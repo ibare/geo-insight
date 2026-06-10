@@ -30,8 +30,15 @@ export const DEFAULT_THEME: Theme = {
   linkColor: '#3fb6ab',
   label: { fill: '#eef2f7', halo: '#0f1726', font: 'system-ui, sans-serif', size: 13 },
   oceanLabel: { fill: '#46586f', size: 15, spacing: 2 },
-  // ADM1 강조 fill(슬레이트 국가색과 구분되는 청록), 경계, 인접 행정구역 배경선.
-  subdivision: { fill: '#3f7fa6', stroke: '#2a3850', contextStroke: '#33455e' },
+  // ADM1 강조 fill(슬레이트 국가색과 구분되는 청록), 경계, 인접 행정구역 배경선,
+  // showOnly 격리 면(어두운 배경 위 중립 패널 + 또렷한 경계).
+  subdivision: {
+    fill: '#3f7fa6',
+    stroke: '#2a3850',
+    contextStroke: '#33455e',
+    canvasFill: '#26354b',
+    canvasStroke: '#46586f',
+  },
   tokens: COLOR_TOKENS,
 };
 

@@ -46,6 +46,7 @@ export function compile(source: string, opts: InternalOptions = {}): CompileResu
   // Resolve → Roles → Geometry
   const built = buildScene(ast, {
     resolver,
+    dataSource,
     theme,
     defaultProjection: opts.projection ?? 'naturalEarth1',
     defaultCenter: opts.center,
@@ -119,6 +120,7 @@ export function compile(source: string, opts: InternalOptions = {}): CompileResu
     meta: camera.meta,
   };
   if (built.config.title) scene.title = built.config.title;
+  if (built.config.showOnly) scene.showOnly = built.config.showOnly;
 
   // Emit
   const svg = emit({ scene, camera, entities: built.entities, links: routed, labels: placed, oceans, theme, dataSource });

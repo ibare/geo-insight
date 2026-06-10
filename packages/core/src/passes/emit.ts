@@ -27,40 +27,45 @@ export interface EmitInput {
 }
 
 export function emit(input: EmitInput): string {
-  const { camera, entities, links, labels, oceans, theme, dataSource } = input;
+  const { scene, camera, entities, links, labels, oceans, theme, dataSource } = input;
   const [vx, vy, vw, vh] = camera.meta.viewBox;
   const out: string[] = [];
+  // showOnly(격리) — 바다/그래티큘/이웃국/대양라벨/인접구역 배경을 모두 생략하고
+  // 대상 국가의 행정구역만 빈 배경에 띄운다.
+  const isolated = scene.showOnly != null;
 
   out.push(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vx} ${vy} ${vw} ${vh}" ` +
       `width="${vw}" height="${vh}" class="geoinsight" role="img">`,
   );
 
-  // 1. sphere (ocean)
-  const sphere = camera.path({ type: 'Sphere' });
-  if (sphere) out.push(path(sphere, { class: 'gi-ocean', fill: theme.ocean, stroke: 'none' }));
+  if (!isolated) {
+    // 1. sphere (ocean)
+    const sphere = camera.path({ type: 'Sphere' });
+    if (sphere) out.push(path(sphere, { class: 'gi-ocean', fill: theme.ocean, stroke: 'none' }));
 
-  // 2. graticule
-  const grat = camera.path(graticule());
-  if (grat)
-    out.push(
-      path(grat, { class: 'gi-graticule', fill: 'none', stroke: theme.graticule, 'stroke-width': '0.5' }),
-    );
+    // 2. graticule
+    const grat = camera.path(graticule());
+    if (grat)
+      out.push(
+        path(grat, { class: 'gi-graticule', fill: 'none', stroke: theme.graticule, 'stroke-width': '0.5' }),
+      );
 
-  // 3. faint world (비선택 국가 배경)
-  const world = camera.path({ type: 'FeatureCollection', features: dataSource.allCountries() });
-  if (world)
-    out.push(
-      path(world, {
-        class: 'gi-world',
-        fill: theme.worldFaint,
-        stroke: theme.worldStroke,
-        'stroke-width': '0.4',
-      }),
-    );
+    // 3. faint world (비선택 국가 배경)
+    const world = camera.path({ type: 'FeatureCollection', features: dataSource.allCountries() });
+    if (world)
+      out.push(
+        path(world, {
+          class: 'gi-world',
+          fill: theme.worldFaint,
+          stroke: theme.worldStroke,
+          'stroke-width': '0.4',
+        }),
+      );
+  }
 
-  // 3.5 5대양 라벨 (항상 표시, 엔티티/링크 아래)
-  if (oceans.length > 0) {
+  // 3.5 5대양 라벨 (엔티티/링크 아래, 격리 모드 제외)
+  if (!isolated && oceans.length > 0) {
     out.push(
       `<g class="gi-oceans" font-family="${escapeAttr(theme.label.font)}" font-size="${theme.oceanLabel.size}" ` +
         `font-style="italic" text-anchor="middle" fill="${theme.oceanLabel.fill}" letter-spacing="${theme.oceanLabel.spacing}">`,
@@ -75,7 +80,7 @@ export function emit(input: EmitInput): string {
   //      "어느 국가의 어느 주" 인지 읽히게 한다(엔티티 fill 아래).
   const admCountries = new Set<string>();
   for (const ent of entities) {
-    if (ent.level > 0 && ent.adm0) admCountries.add(ent.adm0);
+    if (!isolated && ent.level > 0 && ent.adm0) admCountries.add(ent.adm0);
   }
   for (const ccn3 of admCountries) {
     const subs = dataSource.adm1(ccn3);

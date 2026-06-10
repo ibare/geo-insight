@@ -48,4 +48,10 @@ export const PRESETS: Preset[] = [
   fit: bbox -125 24 -66 50
   show: California, Texas, Florida, New York`,
   },
+  {
+    label: 'showOnly — 미국 격리',
+    source: `earth "미국":
+  showOnly: 미국
+  show: California, Texas, Florida`,
+  },
 ];

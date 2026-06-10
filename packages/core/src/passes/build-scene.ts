@@ -5,10 +5,10 @@
  * z-order 와 구면 centroid/bbox 를 채운 엔티티 목록과 link/label 사양을 만든다.
  */
 
-import { createResolver, normalizeName, type Resolver } from '@geoinsight/data';
+import { createResolver, normalizeName, type DataSource, type Resolver } from '@geoinsight/data';
 import type { Ast, PropMap, Role } from '../ast.js';
 import { type Diagnostic, error } from '../diagnostics.js';
-import { boundsOf, centroidOf } from '../geometry.js';
+import { boundsOf, centroidOf, largestPolygon } from '../geometry.js';
 import { resolveColor } from '../theme.js';
 import type {
   ArrowHead,
@@ -67,6 +67,10 @@ export interface SceneConfig {
   centerRaw?: string;
   arrange?: { from: string; to: string };
   fit: FitSpec;
+  /** fit 이 명시적으로 지정됐는지(showOnly 자동 fit 과 구분). */
+  fitExplicit?: boolean;
+  /** showOnly 대상 — 처음엔 원시 국가명, 해석 후 ccn3 로 치환. */
+  showOnly?: string;
   themeOverride: Partial<Theme>;
 }
 
@@ -89,6 +93,8 @@ const PROJECTIONS: ReadonlySet<ProjectionType> = new Set<ProjectionType>([
 
 export interface BuildOptions {
   resolver?: Resolver;
+  /** showOnly 의 ADM1 열거에 사용 (없으면 showOnly 는 ADM0 실루엣으로 폴백). */
+  dataSource?: DataSource;
   theme: Theme;
   defaultProjection: ProjectionType;
   defaultCenter?: number | string;
@@ -207,11 +213,65 @@ export function buildScene(ast: Ast, opts: BuildOptions): BuiltScene {
     if (t) linkEndpointKeys.add(t);
   }
 
+  // 5.5 showOnly — 대상 국가의 ADM1 을 "격리 캔버스" 로 자동 채움(런던 노선도 스타일).
+  //     명시(show/focus)된 ADM1 은 강조색 유지, 나머지는 중립 canvas 면.
+  const autoKeys = new Set<string>();
+  // 본토(최대 클러스터) 프레임 — 멀리 떨어진 영토(예: 알래스카/하와이)는 프레임 밖.
+  let clusterBbox: [number, number, number, number] | null = null;
+  if (config.showOnly) {
+    const res = resolver.resolve(config.showOnly);
+    if (res.kind === 'country') {
+      const ccn3 = res.key;
+      config.showOnly = ccn3; // 원시 이름 → ccn3
+      const subs = opts.dataSource?.adm1(ccn3) ?? [];
+      const baseFeatures = subs.length > 0 ? subs : compact([opts.dataSource?.countryByCode(ccn3)]);
+      for (const f of baseFeatures) {
+        if (entitiesByKey.has(f.id)) continue; // 명시 엔티티 우선
+        autoKeys.add(f.id);
+        entitiesByKey.set(f.id, {
+          key: f.id,
+          display: f.properties.kor,
+          role: 'plain',
+          features: [f],
+          centroid: [0, 0],
+          bbox: [0, 0, 0, 0],
+          z: 0,
+          level: (f.properties.level ?? 0) as 0 | 1 | 2,
+          adm0: ccn3,
+          style: canvasStyle(theme),
+        });
+      }
+      // 본토(국가 ADM0 의 최대 폴리곤) 기준 프레이밍 — 외곽 영토 sprawl 방지.
+      const countryFeat = opts.dataSource?.countryByCode(ccn3);
+      const dom = countryFeat ? largestPolygon([countryFeat]) : null;
+      if (dom) clusterBbox = boundsOf([dom]);
+      if (!config.fitExplicit) {
+        config.fit = clusterBbox ? { mode: 'bbox', bbox: clusterBbox } : { mode: 'entities' };
+      }
+      if (!config.centerRaw) {
+        const c = dom ? centroidOf([dom]) : centroidOf(baseFeatures);
+        if (Number.isFinite(c[0])) config.centerRaw = String(Math.round(c[0]));
+      }
+    } else {
+      diagnostics.push(error(`showOnly 는 단일 국가여야 합니다: '${config.showOnly}'`));
+      config.showOnly = undefined;
+    }
+  }
+
   // 6. 역할 추론 + z-order + 스타일 + 7. geometry
   const entities = [...entitiesByKey.values()];
   let groupIdx = 0;
   let focusIdx = 0;
   entities.forEach((ent, i) => {
+    // showOnly 자동 캔버스 — 맨 아래에 깔고 canvas 스타일 유지(역할/스타일 재계산 skip).
+    if (autoKeys.has(ent.key)) {
+      ent.z = -100000 + i;
+      ent.centroid = centroidOf(ent.features);
+      ent.bbox = boundsOf(ent.features);
+      // 본토 프레임 밖(예: 알래스카/하와이)은 라벨 생략 — 가장자리로 클램프되는 것 방지.
+      if (clusterBbox && !pointInBbox(ent.centroid, clusterBbox, 0.15)) ent.style.label = false;
+      return;
+    }
     const explicit = explicitStyleProps.has(ent.key);
     if (!explicit) {
       // 추론: group(대륙/권역) → group, link 끝점 → focus, 그 외 plain
@@ -315,6 +375,10 @@ function applySceneProp(
     case 'show':
       (stmt.list ?? [stmt.raw]).forEach((n) => showNames.push(n));
       break;
+    case 'showOnly':
+      // 단일 국가만 — 원시 이름 저장(후속에서 ccn3 로 해석). 첫 항목만.
+      config.showOnly = (stmt.list ?? [stmt.raw])[0]?.trim();
+      break;
     case 'arrange':
       if (stmt.relation) config.arrange = stmt.relation;
       break;
@@ -323,6 +387,7 @@ function applySceneProp(
       break;
     case 'fit':
       config.fit = parseFit(stmt.raw);
+      config.fitExplicit = true;
       break;
     case 'projection': {
       const p = stmt.raw.trim() as ProjectionType;
@@ -350,6 +415,32 @@ function parseFit(raw: string): FitSpec {
 
 function neutralStyle(theme: Theme): ResolvedStyle {
   return { fill: theme.worldFaint, stroke: theme.worldStroke, borders: true, label: true, opacity: 1 };
+}
+
+/** showOnly 격리 모드의 미선택 행정구역 면(중립 패널 + 또렷한 경계). */
+function canvasStyle(theme: Theme): ResolvedStyle {
+  return {
+    fill: theme.subdivision.canvasFill,
+    stroke: theme.subdivision.canvasStroke,
+    borders: true,
+    label: true,
+    opacity: 1,
+  };
+}
+
+function compact<T>(arr: (T | undefined)[]): T[] {
+  return arr.filter((x): x is T => x != null);
+}
+
+/** 점이 bbox[w,s,e,n] 안(margin 비율만큼 확장)에 있는지. */
+function pointInBbox(
+  [lon, lat]: [number, number],
+  [w, s, e, n]: [number, number, number, number],
+  margin: number,
+): boolean {
+  const mx = (e - w) * margin;
+  const my = (n - s) * margin;
+  return lon >= w - mx && lon <= e + mx && lat >= s - my && lat <= n + my;
 }
 
 /** feature 집합의 행정 레벨 (가장 큰 값). 국가=0, ADM1=1, ADM2=2. */

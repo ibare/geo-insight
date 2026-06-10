@@ -58,6 +58,44 @@ describe('ADM1 렌더 통합', () => {
     expect(scene.entities[0]!.style.fill).toBe(DEFAULT_THEME.tokens.coral);
   });
 
+  it('showOnly — 격리 모드: 바다/이웃국 생략 + 국가 ADM1 자동 캔버스', () => {
+    const ds = usDataSource();
+    const r = createResolver({ dataSource: ds });
+    const { scene, svg } = compile('earth:\n  showOnly: 미국\n  show: California', { dataSource: ds, resolver: r });
+    expect(scene.showOnly).toBe('840');
+    // 바다/그래티큘/이웃국(faint world)/대양라벨 모두 생략.
+    expect(svg).not.toContain('gi-ocean');
+    expect(svg).not.toContain('gi-graticule');
+    expect(svg).not.toContain('gi-world');
+    expect(svg).not.toContain('gi-ocean-label');
+    // 미국 ADM1 이 자동으로 캔버스 엔티티가 된다(51개 안팎).
+    expect(scene.entities.length).toBeGreaterThan(40);
+    // 명시한 California 는 강조색, 자동 채운 주는 canvas 색.
+    const cali = scene.entities.find((e) => e.display === 'California')!;
+    expect(cali.style.fill).toBe(DEFAULT_THEME.subdivision.fill);
+    const auto = scene.entities.find((e) => e.style.fill === DEFAULT_THEME.subdivision.canvasFill);
+    expect(auto).toBeTruthy();
+    // 강조 엔티티가 캔버스보다 위(z 큼).
+    expect(cali.z).toBeGreaterThan(auto!.z);
+  });
+
+  it('showOnly — ADM1 미로드 시 국가(ADM0) 실루엣으로 폴백', () => {
+    const ds = createDefaultDataSource(); // ADM1 로드 안 함
+    const r = createResolver({ dataSource: ds });
+    const { scene } = compile('earth:\n  showOnly: 프랑스', { dataSource: ds, resolver: r });
+    expect(scene.showOnly).toBe('250');
+    // ADM0 실루엣 1개.
+    expect(scene.entities).toHaveLength(1);
+    expect(scene.entities[0]!.level).toBe(0);
+  });
+
+  it('showOnly 가 국가가 아니면 에러 진단', () => {
+    const ds = usDataSource();
+    const r = createResolver({ dataSource: ds });
+    const { diagnostics } = compile('earth:\n  showOnly: 아프리카', { dataSource: ds, resolver: r });
+    expect(diagnostics.some((d) => d.level === 'error')).toBe(true);
+  });
+
   it('ADM1 미로드 국가의 주 이름은 미해석(에러 진단)', () => {
     const ds = createDefaultDataSource(); // 아무것도 로드 안 함
     const r = createResolver({ dataSource: ds });

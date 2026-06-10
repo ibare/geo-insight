@@ -64,8 +64,19 @@ export interface Theme {
   label: { fill: string; halo: string; font: string; size: number };
   /** 5대양 라벨(항상 표시) 스타일. */
   oceanLabel: { fill: string; size: number; spacing: number };
-  /** ADM1/2 시각 구분 — 강조된 행정구역 fill + 소속 국가 인접구역 경계(배경). */
-  subdivision: { fill: string; stroke: string; contextStroke: string };
+  /**
+   * ADM1/2 시각 구분.
+   * - fill/stroke: 강조된(선택된) 행정구역.
+   * - contextStroke: 소속 국가 인접구역 경계(일반 모드 배경선).
+   * - canvasFill/canvasStroke: showOnly(격리) 모드에서 선택되지 않은 행정구역 면/경계.
+   */
+  subdivision: {
+    fill: string;
+    stroke: string;
+    contextStroke: string;
+    canvasFill: string;
+    canvasStroke: string;
+  };
   /** named 토큰(amber/coral/teal 등) → hex. */
   tokens: Record<string, string>;
 }
@@ -134,6 +145,8 @@ export interface SceneMeta {
 
 export interface Scene {
   title?: string;
+  /** showOnly 모드의 대상 국가 ccn3 — 설정 시 emit 이 바다/이웃국/그래티큘을 생략(격리). */
+  showOnly?: string;
   projection: ProjSpec;
   fit: FitSpec;
   theme: ResolvedTheme;
