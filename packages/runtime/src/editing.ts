@@ -267,11 +267,19 @@ export function attachEditing(params: EditingParams): EditingController {
   const entityDisplay = (key: string): string =>
     scene.entities.find((e) => e.key === key)?.display ?? key;
 
+  /** showOnly 에서 이 엔티티가 '선택된'(show 에 명시) ADM1 인지 — 자동 캔버스와 구분. */
+  function isSelectedAdm1(e: Entity): boolean {
+    return hasShowName(getSource(), e.display);
+  }
+
   // ── 국가 메뉴 ──
   const openMenu = (entity: Entity, clientX: number, clientY: number): void => {
+    // showOnly 에선 연결 후보를 '선택된' ADM1 로만 한정(전체 행정구역 캔버스 제외).
+    const others = scene.entities.filter(
+      (e) => e.key !== entity.key && (!scene.showOnly || isSelectedAdm1(e)),
+    );
     openMenuShell(clientX, clientY, (menu) => {
       addTitle(menu, entity.display);
-      const others = scene.entities.filter((e) => e.key !== entity.key);
       if (others.length > 0) {
         addSection(menu, '연결 / 해제');
         for (const other of others) {
@@ -285,7 +293,9 @@ export function attachEditing(params: EditingParams): EditingController {
         menu.appendChild(hint);
       }
       addSep(menu);
-      addItem(menu, '이 국가 제거', () => commit(removeShowName(getSource(), entity.display)), { danger: true });
+      addItem(menu, scene.showOnly ? '선택 해제' : '이 국가 제거', () => commit(removeShowName(getSource(), entity.display)), {
+        danger: true,
+      });
     });
   };
 
@@ -417,7 +427,7 @@ export function attachEditing(params: EditingParams): EditingController {
       }
       if (ent) {
         const shown = hasShowName(getSource(), ent.display);
-        tooltip.textContent = `${ent.display}  ${shown ? '· 클릭: 해제' : '+ 선택'}`;
+        tooltip.textContent = `${ent.display}  ${shown ? '· 클릭: 연결/해제' : '+ 선택'}`;
         tooltip.style.display = '';
         const rect = host.getBoundingClientRect();
         tooltip.style.left = `${pending.x - rect.left + 12}px`;
@@ -488,14 +498,18 @@ export function attachEditing(params: EditingParams): EditingController {
     downActive = false;
     if (menuEl) return; // 메뉴 열림 중 — backdrop 가 처리
     if (Math.hypot(e.clientX - downX, e.clientY - downY) > CLICK_MOVE_THRESHOLD) return; // 팬
-    // showOnly — ADM1 클릭으로 show 토글(선택 ↔ 해제).
+    // showOnly — 미선택 ADM1 클릭: 선택(추가). 선택된 ADM1 클릭: 메뉴(연결/해제·선택해제).
     if (scene.showOnly) {
       const ent = entityAt(e.clientX, e.clientY);
       if (!ent) return;
       onLeave();
-      const src = getSource();
-      const next = hasShowName(src, ent.display) ? removeShowName(src, ent.display) : addShowName(src, ent.display);
-      if (next !== src) applyEdit(next);
+      if (isSelectedAdm1(ent)) {
+        openMenu(ent, e.clientX, e.clientY);
+      } else {
+        const src = getSource();
+        const next = addShowName(src, ent.display);
+        if (next !== src) applyEdit(next);
+      }
       return;
     }
     // 링크(화살표/선) 클릭 → 링크 메뉴

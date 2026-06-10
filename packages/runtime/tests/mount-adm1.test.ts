@@ -73,6 +73,37 @@ describe('mount — ADM1 지연 로딩', () => {
     inst.destroy();
   });
 
+  it('showOnly — 선택된 ADM1 클릭 시 즉시 해제 아닌 메뉴(연결/해제·선택해제)', async () => {
+    const el = document.createElement('div');
+    let last: string | null = null;
+    const inst = mount(el, 'earth:\n  showOnly: 미국\n  show: California', {
+      editable: true,
+      interactive: false,
+      loadAdm1: async (c) => (c === '840' ? [CALIFORNIA] : null),
+      onChange: (s) => {
+        last = s;
+      },
+    });
+    await vi.waitFor(() => expect(el.querySelector('[data-key="USA-3521"]')).toBeTruthy());
+
+    Object.defineProperty(document, 'elementFromPoint', {
+      configurable: true,
+      value: () => ({ getAttribute: (k: string) => (k === 'data-key' ? 'USA-3521' : null) }),
+    });
+    const svg = el.querySelector('svg')!;
+    svg.dispatchEvent(new MouseEvent('pointerdown', { clientX: 100, clientY: 100, bubbles: true }));
+    svg.dispatchEvent(new MouseEvent('pointerup', { clientX: 100, clientY: 100, bubbles: true }));
+
+    // 즉시 해제되지 않고 메뉴가 뜬다.
+    expect(last).toBeNull();
+    const menu = el.querySelector('.gi-edit-menu');
+    expect(menu).toBeTruthy();
+    expect(menu!.textContent).toContain('선택 해제');
+
+    Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: () => null });
+    inst.destroy();
+  });
+
   it('loadAdm1 미제공 시 ADM1 은 미해석(엔티티 없음)', async () => {
     const el = document.createElement('div');
     const diags: unknown[] = [];
