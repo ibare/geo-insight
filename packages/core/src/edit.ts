@@ -162,6 +162,48 @@ export function setCenter(source: string, lon: number): string {
   return lines.join('\n');
 }
 
+/**
+ * showOnly(격리) 진입 — 대상 국가를 showOnly 로 설정. 그 국가가 ADM0 엔티티로
+ * 중복 렌더되지 않게 show 리스트에서 빼고, 세계 뷰용 center/fit/arrange 를 제거해
+ * 대상 국가에 자동 프레이밍되게 한다.
+ */
+export function setShowOnly(source: string, name: string): string {
+  const target = name.trim();
+  if (!target) return source;
+  const norm = normalizeName(target);
+  let lines = splitLines(source);
+
+  // 1. show 리스트에서 대상 제거(없으면 그대로).
+  const showIdx = findPropLine(lines, 'show');
+  if (showIdx >= 0) {
+    const ind = /^(\s*)/.exec(lines[showIdx]!)![1]!;
+    const colon = lines[showIdx]!.indexOf(':');
+    const names = parseList(lines[showIdx]!.slice(colon + 1)).filter((n) => normalizeName(n) !== norm);
+    if (names.length === 0) lines.splice(showIdx, 1);
+    else lines[showIdx] = `${ind}show: ${names.join(', ')}`;
+  }
+
+  // 2. 세계 뷰 프레이밍 prop 제거 → 대상 국가 자동 프레이밍.
+  lines = lines.filter((l) => !/^\s*(center|fit|arrange)\s*:/.test(l));
+
+  // 3. showOnly 라인 설정/교체.
+  const idx = findPropLine(lines, 'showOnly');
+  if (idx >= 0) {
+    const ind = /^(\s*)/.exec(lines[idx]!)![1]!;
+    lines[idx] = `${ind}showOnly: ${target}`;
+  } else {
+    insertAfter(lines, headerIndex(lines), `${detectIndent(lines)}showOnly: ${target}`);
+  }
+  return lines.join('\n');
+}
+
+/** showOnly(격리) 해제 — showOnly 라인 제거(세계 뷰로 복귀). */
+export function removeShowOnly(source: string): string {
+  return splitLines(source)
+    .filter((l) => !/^\s*showOnly\s*:/.test(l))
+    .join('\n');
+}
+
 /** link 계열 키워드(인라인). */
 const LINK_KEYWORD_RE = /^(\s*)(link|arrow|wind|current|route)\s*:\s*(.*)$/;
 const LINK_TYPE_TO_KEYWORD: Record<string, string> = {

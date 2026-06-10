@@ -17,6 +17,8 @@ export {
   setLinkType,
   setLinkLabel,
   setCenter,
+  setShowOnly,
+  removeShowOnly,
 } from './edit.js';
 
 export type {

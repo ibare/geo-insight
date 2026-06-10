@@ -223,6 +223,8 @@ export function buildScene(ast: Ast, opts: BuildOptions): BuiltScene {
     if (res.kind === 'country') {
       const ccn3 = res.key;
       config.showOnly = ccn3; // 원시 이름 → ccn3
+      // 대상 국가가 show 에도 있으면 ADM0 엔티티가 캔버스를 덮으므로 제거.
+      entitiesByKey.delete(ccn3);
       const subs = opts.dataSource?.adm1(ccn3) ?? [];
       const baseFeatures = subs.length > 0 ? subs : compact([opts.dataSource?.countryByCode(ccn3)]);
       for (const f of baseFeatures) {
@@ -240,6 +242,10 @@ export function buildScene(ast: Ast, opts: BuildOptions): BuiltScene {
           adm0: ccn3,
           style: canvasStyle(theme),
         });
+      }
+      // 대상 국가에 속하지 않는 엔티티(다른 나라 등 세계뷰 잔재)는 격리 뷰에서 제외.
+      for (const [k, e] of [...entitiesByKey]) {
+        if (e.adm0 !== ccn3) entitiesByKey.delete(k);
       }
       // 본토(국가 ADM0 의 최대 폴리곤) 기준 프레이밍 — 외곽 영토 sprawl 방지.
       const countryFeat = opts.dataSource?.countryByCode(ccn3);

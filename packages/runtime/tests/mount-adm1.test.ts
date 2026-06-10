@@ -1,7 +1,15 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from 'vitest';
-import type { GeoFeature } from '@geoinsight/core';
+import { cameraFromMeta, type GeoFeature } from '@geoinsight/core';
 import { mount } from '../src/mount.js';
+
+/** happy-dom 레이아웃 부재 → getBoundingClientRect 를 viewBox 와 동일 rect 로 스텁. */
+function stubRect(svg: SVGSVGElement, w: number, h: number): void {
+  Object.defineProperty(svg, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => ({ left: 0, top: 0, width: w, height: h, right: w, bottom: h, x: 0, y: 0 }),
+  });
+}
 
 /** California(US-CA) 더미 — id 는 실제 gazetteer adm1_code 와 일치해야 resolver 가 잡는다. */
 const CALIFORNIA: GeoFeature = {
@@ -101,6 +109,57 @@ describe('mount — ADM1 지연 로딩', () => {
     expect(menu!.textContent).toContain('선택 해제');
 
     Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: () => null });
+    inst.destroy();
+  });
+
+  it('showOnly 에선 나가기 버튼이 있고 클릭 시 showOnly 해제', async () => {
+    const el = document.createElement('div');
+    let last: string | null = null;
+    const inst = mount(el, 'earth:\n  showOnly: 미국', {
+      editable: true,
+      interactive: false,
+      loadAdm1: async (c) => (c === '840' ? [CALIFORNIA] : null),
+      onChange: (s) => {
+        last = s;
+      },
+    });
+    await vi.waitFor(() => expect(el.querySelector('[data-key="USA-3521"]')).toBeTruthy());
+
+    const exit = el.querySelector<HTMLButtonElement>('.gi-edit-exit');
+    expect(exit).toBeTruthy();
+    exit!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(last).toBeTruthy();
+    expect(last!).not.toContain('showOnly');
+
+    inst.destroy();
+  });
+
+  it('일반 모드 국가 메뉴에 "행정구역 보기"(showOnly 진입)', () => {
+    const el = document.createElement('div');
+    let last: string | null = null;
+    const inst = mount(el, 'earth:\n  show: 미국', {
+      editable: true,
+      interactive: false,
+      onChange: (s) => {
+        last = s;
+      },
+    });
+    const svg = el.querySelector('svg')!;
+    const meta = inst.getResult()!.meta;
+    stubRect(svg, meta.width, meta.height);
+    // 미국 본토 내부 [-98,39] 를 클릭 → 역지오코딩 미국 → 메뉴.
+    const px = cameraFromMeta(meta).project([-98, 39])!;
+    svg.dispatchEvent(new MouseEvent('pointerdown', { clientX: px[0], clientY: px[1], bubbles: true }));
+    svg.dispatchEvent(new MouseEvent('pointerup', { clientX: px[0], clientY: px[1], bubbles: true }));
+
+    const btn = [...el.querySelectorAll<HTMLButtonElement>('.gi-edit-menu-item')].find((b) =>
+      (b.textContent ?? '').includes('행정구역 보기'),
+    );
+    expect(btn).toBeTruthy();
+    btn!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(last).toBeTruthy();
+    expect(last!).toContain('showOnly: 미국');
+
     inst.destroy();
   });
 

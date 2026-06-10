@@ -5,9 +5,11 @@ import {
   hasShowName,
   removeLink,
   removeShowName,
+  removeShowOnly,
   setCenter,
   setLinkLabel,
   setLinkType,
+  setShowOnly,
 } from '../src/edit.js';
 import { createLocator } from '../src/locate.js';
 import { compile } from '../src/compile.js';
@@ -86,6 +88,27 @@ describe('DSL 패치 — setLinkType/setLinkLabel', () => {
   it('removeLink 는 타입 키워드(wind 등)도 제거', () => {
     const out = removeLink(`earth:\n  wind: 수단 -> 인도 "x"`, '수단', '인도');
     expect(out).not.toContain('wind:');
+  });
+});
+
+describe('DSL 패치 — setShowOnly/removeShowOnly', () => {
+  it('showOnly 설정 + 대상 제거(show) + 세계뷰 프레이밍 제거', () => {
+    const out = setShowOnly(`earth:\n  center: 태평양\n  fit: world\n  show: 미국, 캐나다`, '미국');
+    expect(out).toContain('showOnly: 미국');
+    expect(out).not.toContain('center:');
+    expect(out).not.toContain('fit:');
+    expect(out).toContain('show: 캐나다'); // 다른 항목은 보존
+    expect(out).not.toMatch(/show:.*미국/);
+  });
+  it('기존 showOnly 라인 교체', () => {
+    const out = setShowOnly(`earth:\n  showOnly: 미국`, '프랑스');
+    expect(out).toContain('showOnly: 프랑스');
+    expect(out).not.toContain('showOnly: 미국');
+  });
+  it('removeShowOnly 로 세계뷰 복귀', () => {
+    const out = removeShowOnly(`earth:\n  showOnly: 미국\n  show: 캐나다`);
+    expect(out).not.toContain('showOnly');
+    expect(out).toContain('show: 캐나다');
   });
 });
 

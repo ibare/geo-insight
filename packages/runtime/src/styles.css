@@ -98,6 +98,30 @@
   border-color: #3fb6ab;
 }
 
+/* showOnly 나가기 버튼 — 좌상단, 캔버스 hover 시 노출 */
+[data-geoinsight-root] .gi-edit-exit {
+  position: absolute;
+  z-index: 4;
+  left: 10px;
+  top: 10px;
+  display: none;
+  background: rgba(19, 28, 44, 0.85);
+  color: #cdd6e2;
+  border: 1px solid rgba(127, 140, 158, 0.35);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-family: system-ui, sans-serif;
+  cursor: pointer;
+}
+[data-geoinsight-root]:hover .gi-edit-exit {
+  display: block;
+}
+[data-geoinsight-root] .gi-edit-exit:hover {
+  border-color: #3fb6ab;
+  color: #e7edf5;
+}
+
 /* 컨텍스트 메뉴 */
 [data-geoinsight-root] .gi-edit-backdrop {
   position: absolute;

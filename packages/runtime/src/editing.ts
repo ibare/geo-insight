@@ -18,9 +18,11 @@ import {
   hasShowName,
   removeLink,
   removeShowName,
+  removeShowOnly,
   setCenter,
   setLinkLabel,
   setLinkType,
+  setShowOnly,
   type CompileResult,
   type Entity,
   type Link,
@@ -145,9 +147,22 @@ export function attachEditing(params: EditingParams): EditingController {
   host.appendChild(gizmo);
 
   // showOnly(격리) 에선 대륙 칩·중앙 기즈모가 무의미 → 숨김(인라인 스타일이 :hover 규칙보다 우선).
+  // 대신 '← 전체 지도' 나가기 버튼을 둔다.
+  let exitBtn: HTMLButtonElement | null = null;
   if (scene.showOnly) {
     toolbar.style.display = 'none';
     gizmo.style.display = 'none';
+    exitBtn = document.createElement('button');
+    exitBtn.type = 'button';
+    exitBtn.className = 'gi-edit-exit';
+    exitBtn.textContent = '← 전체 지도';
+    exitBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const src = getSource();
+      const next = removeShowOnly(src);
+      if (next !== src) applyEdit(next);
+    });
+    host.appendChild(exitBtn);
   }
 
   function startCenterDrag(e: PointerEvent): void {
@@ -293,6 +308,10 @@ export function attachEditing(params: EditingParams): EditingController {
         menu.appendChild(hint);
       }
       addSep(menu);
+      // 일반 모드에서 국가(level 0) → 이 국가만 행정구역으로 보기(showOnly 진입).
+      if (!scene.showOnly && entity.level === 0) {
+        addItem(menu, '행정구역 보기', () => commit(setShowOnly(getSource(), entity.display)));
+      }
       addItem(menu, scene.showOnly ? '선택 해제' : '이 국가 제거', () => commit(removeShowName(getSource(), entity.display)), {
         danger: true,
       });
@@ -560,6 +579,7 @@ export function attachEditing(params: EditingParams): EditingController {
       tooltip.remove();
       toolbar.remove();
       gizmo.remove();
+      exitBtn?.remove();
     },
   };
 }
