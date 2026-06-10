@@ -60,7 +60,9 @@ export const GeoInsightExtension = Node.create<GeoInsightExtensionOptions>({
   },
 
   parseHTML() {
-    return [{ tag: 'pre[data-geoinsight]', preserveWhitespace: 'full' }];
+    // priority 를 높여 StarterKit 의 codeBlock(generic `pre` 매칭)보다 먼저 잡히게 한다.
+    // 이게 없으면 `<pre data-geoinsight>` 가 일반 코드블록으로 파싱된다.
+    return [{ tag: 'pre[data-geoinsight]', preserveWhitespace: 'full', priority: 100 }];
   },
 
   renderHTML({ HTMLAttributes }) {
