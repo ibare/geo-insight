@@ -1,0 +1,45 @@
+/*
+ * host-tiptap NodeView 가 호스트 문서 DOM 에 박는 wrapper 의 최소 sizing.
+ *
+ * 구조: <pre.geoinsight-tiptap-node>
+ *         <div.geoinsight-tiptap-mount[data-geoinsight-root]> ← runtime SVG
+ *         <div.geoinsight-tiptap-resize>                       ← 높이 핸들
+ *
+ * runtime 의 styles.css 는 [data-geoinsight-root] 까지만 알기 때문에, 그 바깥
+ * wrapper 의 sizing 책임을 geoinsight 쪽으로 가져온다. geoinsight-tiptap- prefix 가
+ * 호스트 전역 충돌을 막는 봉인.
+ */
+
+.geoinsight-tiptap-node {
+  display: block;
+  position: relative;
+  margin: 1em 0;
+  padding: 0;
+  background: transparent;
+}
+
+.geoinsight-tiptap-mount {
+  display: block;
+  width: 100%;
+}
+
+.geoinsight-tiptap-resize {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -4px;
+  height: 10px;
+  cursor: ns-resize;
+}
+
+.geoinsight-tiptap-resize::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  width: 36px;
+  height: 4px;
+  transform: translateX(-50%);
+  border-radius: 2px;
+  background: rgba(127, 140, 158, 0.5);
+}

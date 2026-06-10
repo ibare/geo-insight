@@ -1,0 +1,168 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`golden — africa-sudan-india (최소형) > 구조 다이제스트 스냅샷 1`] = `
+{
+  "entities": [
+    {
+      "borders": true,
+      "display": "아프리카",
+      "fill": "#d98a3a",
+      "key": "group:africa",
+      "role": "group",
+      "z": 0,
+    },
+    {
+      "borders": true,
+      "display": "수단",
+      "fill": "#e1604f",
+      "key": "729",
+      "role": "focus",
+      "z": 2001,
+    },
+    {
+      "borders": true,
+      "display": "인도",
+      "fill": "#e1604f",
+      "key": "356",
+      "role": "focus",
+      "z": 2002,
+    },
+  ],
+  "labels": [
+    "아프리카",
+    "수단",
+    "인도",
+  ],
+  "links": [
+    {
+      "anchor": "border",
+      "from": "729",
+      "geodesic": false,
+      "to": "356",
+    },
+  ],
+  "projection": {
+    "rotate": [
+      -0,
+      0,
+    ],
+    "type": "naturalEarth1",
+  },
+  "svgChecksum": "58b04f6c",
+  "viewBox": [
+    0,
+    0,
+    960,
+    576,
+  ],
+}
+`;
+
+exports[`golden — trade-winds (좌우 배치) > 구조 다이제스트 스냅샷 1`] = `
+{
+  "entities": [
+    {
+      "borders": true,
+      "display": "아프리카",
+      "fill": "#d98a3a",
+      "key": "group:africa",
+      "role": "group",
+      "z": 0,
+    },
+    {
+      "borders": true,
+      "display": "동남아시아",
+      "fill": "#6a9a52",
+      "key": "group:southeast-asia",
+      "role": "group",
+      "z": 1,
+    },
+    {
+      "borders": true,
+      "display": "아메리카",
+      "fill": "#5a6abf",
+      "key": "group:americas",
+      "role": "group",
+      "z": 2,
+    },
+  ],
+  "labels": [
+    "아프리카",
+    "동남아시아",
+    "아메리카",
+  ],
+  "links": [],
+  "projection": {
+    "rotate": [
+      -180,
+      0,
+    ],
+    "type": "naturalEarth1",
+  },
+  "svgChecksum": "14bc0cba",
+  "viewBox": [
+    0,
+    0,
+    960,
+    576,
+  ],
+}
+`;
+
+exports[`golden — 명시형 + geodesic > 구조 다이제스트 스냅샷 1`] = `
+{
+  "entities": [
+    {
+      "borders": true,
+      "display": "아시아",
+      "fill": "#d98a3a",
+      "key": "group:asia",
+      "role": "group",
+      "z": 0,
+    },
+    {
+      "borders": true,
+      "display": "한국",
+      "fill": "#e1604f",
+      "key": "410",
+      "role": "focus",
+      "z": 2001,
+    },
+    {
+      "borders": true,
+      "display": "인도",
+      "fill": "#e1604f",
+      "key": "356",
+      "role": "focus",
+      "z": 2002,
+    },
+  ],
+  "labels": [
+    "아시아",
+    "한국",
+    "인도",
+  ],
+  "links": [
+    {
+      "anchor": "border",
+      "from": "410",
+      "geodesic": true,
+      "to": "356",
+    },
+  ],
+  "projection": {
+    "rotate": [
+      -60,
+      0,
+    ],
+    "type": "naturalEarth1",
+  },
+  "svgChecksum": "81f7c5c4",
+  "viewBox": [
+    0,
+    0,
+    960,
+    576,
+  ],
+}
+`;

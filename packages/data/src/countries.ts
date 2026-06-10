@@ -1,0 +1,151 @@
+/**
+ * world-atlas(110m) topojson + world-countries 메타데이터를 조인해
+ * ccn3 색인된 국가 feature 목록을 만든다.
+ *
+ * - 지오메트리: world-atlas countries-110m. topojson `id` 가 ccn3 숫자 문자열.
+ * - 메타데이터: world-countries. ccn3 로 조인해 한글명/region/subregion/ISO 부여.
+ * - 조인 실패(예: 분쟁지역 id "-99")는 지오메트리는 보존하되 메타는 properties.name
+ *   기반 최소값으로 채운다 — 이름·코드로는 해석 불가하지만 그림에서 빠지지 않게.
+ */
+
+import { feature } from 'topojson-client';
+import type {
+  CountryGeometry,
+  DataSource,
+  GeoFeature,
+  MultiPolygonGeometry,
+  PolygonGeometry,
+} from './types.js';
+// 거대한 JSON 리터럴 타입으로 인한 tsc 성능 저하를 피하려 unknown 캐스트로 받는다.
+// (world-atlas JSON 은 json-modules.d.ts 에서 unknown 으로 선언)
+import worldCountriesRaw from 'world-countries';
+import topology110mRaw from 'world-atlas/countries-110m.json';
+
+interface RawCountry {
+  ccn3: string;
+  cca2: string;
+  cca3: string;
+  name: { common: string; official: string };
+  translations: { kor?: { common: string; official: string } };
+  region: string;
+  subregion: string;
+  altSpellings: string[];
+  /** 주권 독립국 여부. 이름 충돌(예: '인도' India↔영국령 인도양 지역) 시 타이브레이크. */
+  independent: boolean;
+  unMember: boolean;
+}
+
+interface TopoGeometry {
+  id?: string | number;
+  type: string;
+  properties?: { name?: string };
+  arcs: unknown;
+}
+interface Topology {
+  type: 'Topology';
+  objects: { countries: { type: 'GeometryCollection'; geometries: TopoGeometry[] } };
+  arcs: unknown;
+  transform?: unknown;
+}
+
+interface FeatureCollectionLike {
+  features: Array<{
+    id?: string | number;
+    properties?: { name?: string } | null;
+    geometry: { type: string; coordinates: unknown } | null;
+  }>;
+}
+
+const worldCountries = worldCountriesRaw as unknown as RawCountry[];
+const topology110m = topology110mRaw as unknown as Topology;
+
+/** ccn3 → 메타데이터 색인. */
+const metaByCode = new Map<string, RawCountry>();
+for (const c of worldCountries) {
+  metaByCode.set(c.ccn3, c);
+}
+
+function toCountryGeometry(geom: {
+  type: string;
+  coordinates: unknown;
+} | null): CountryGeometry | null {
+  if (!geom) return null;
+  if (geom.type === 'Polygon') {
+    return { type: 'Polygon', coordinates: geom.coordinates } as PolygonGeometry;
+  }
+  if (geom.type === 'MultiPolygon') {
+    return { type: 'MultiPolygon', coordinates: geom.coordinates } as MultiPolygonGeometry;
+  }
+  return null;
+}
+
+function buildFeatures(): GeoFeature[] {
+  const fc = feature(
+    topology110m as never,
+    topology110m.objects.countries as never,
+  ) as unknown as FeatureCollectionLike;
+
+  const out: GeoFeature[] = [];
+  for (const f of fc.features) {
+    const geometry = toCountryGeometry(f.geometry);
+    if (!geometry) continue;
+    const id = f.id == null ? '' : String(f.id);
+    const meta = metaByCode.get(id);
+    const fallbackName = f.properties?.name ?? id ?? 'Unknown';
+    out.push({
+      type: 'Feature',
+      id,
+      properties: meta
+        ? {
+            name: meta.name.common,
+            kor: meta.translations.kor?.common ?? meta.name.common,
+            cca2: meta.cca2,
+            cca3: meta.cca3,
+            region: meta.region,
+            subregion: meta.subregion,
+          }
+        : {
+            name: fallbackName,
+            kor: fallbackName,
+            cca2: '',
+            cca3: '',
+            region: '',
+            subregion: '',
+          },
+      geometry,
+    });
+  }
+  // 안정 순서: ccn3(숫자) 오름차순. 빈 id 는 뒤로.
+  out.sort((a, b) => {
+    const na = a.id ? Number(a.id) : Number.POSITIVE_INFINITY;
+    const nb = b.id ? Number(b.id) : Number.POSITIVE_INFINITY;
+    if (na !== nb) return na - nb;
+    return a.properties.name.localeCompare(b.properties.name);
+  });
+  return out;
+}
+
+let cached: GeoFeature[] | null = null;
+function features(): GeoFeature[] {
+  if (!cached) cached = buildFeatures();
+  return cached;
+}
+
+/** 기본 DataSource — 번들된 world-atlas 110m + world-countries. */
+export function createDefaultDataSource(): DataSource {
+  const byCode = new Map<string, GeoFeature>();
+  for (const f of features()) {
+    if (f.id) byCode.set(f.id, f);
+  }
+  return {
+    countryByCode: (ccn3) => byCode.get(ccn3),
+    allCountries: () => features(),
+  };
+}
+
+/** world-countries 메타 원본 접근 (resolver 가 이름 색인 구축에 사용). */
+export function rawCountries(): readonly RawCountry[] {
+  return worldCountries;
+}
+
+export type { RawCountry };

@@ -1,0 +1,73 @@
+import { Node, mergeAttributes } from '@tiptap/core';
+import { createGeoInsightNodeView } from './node-view.js';
+
+export const GEOINSIGHT_NODE_NAME = 'geoinsightBlock';
+
+export interface GeoInsightExtensionOptions {
+  /** 호스트 로케일 (현재 패스스루). */
+  locale?: string;
+  /** 호스트 테마 힌트. */
+  theme?: 'light' | 'dark';
+}
+
+/**
+ * GeoInsight 펜스 Tiptap 확장.
+ *
+ * 마크다운 round-trip: ```geoinsight\n<DSL>\n``` ↔ `<pre data-geoinsight><code>DSL</code></pre>`.
+ * 호스트의 마크다운 변환기가 fence lang `geoinsight` 를 감지해 노드로 변환하고,
+ * 직렬화 때 같은 fence 로 되돌린다. DSL 본문은 attrs 가 아닌 textContent 로 보관 —
+ * 멀티라인이 자연스럽고 HTML attribute 인코딩을 피한다(trama 패턴).
+ *
+ * 형질:
+ *   - group block, content text*: DSL 텍스트를 노드 컨텐츠로 직접 보관
+ *   - code: 코드블록 의미(마크다운 fence 와 짝)
+ *   - defining + isolating: 분할/병합에서 텍스트가 섞이지 않음
+ *   - marks '': 인라인 마크 적용 불가
+ */
+export const GeoInsightExtension = Node.create<GeoInsightExtensionOptions>({
+  name: GEOINSIGHT_NODE_NAME,
+  group: 'block',
+  content: 'text*',
+  code: true,
+  defining: true,
+  isolating: true,
+  marks: '',
+  selectable: true,
+  draggable: false,
+
+  addOptions() {
+    return { locale: undefined, theme: undefined };
+  },
+
+  /** 캔버스 높이(px) attr — 호스트 영속 표면. 미조절 fence 는 attr 없이 유지. */
+  addAttributes() {
+    return {
+      height: {
+        default: null as number | null,
+        parseHTML: (el) => {
+          const raw = (el as HTMLElement).getAttribute('data-height');
+          if (raw == null) return null;
+          const n = Number(raw);
+          return Number.isFinite(n) && n > 0 ? n : null;
+        },
+        renderHTML: (attrs) => {
+          const h = attrs.height;
+          if (typeof h !== 'number' || !Number.isFinite(h) || h <= 0) return {};
+          return { 'data-height': String(h) };
+        },
+      },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: 'pre[data-geoinsight]', preserveWhitespace: 'full' }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ['pre', mergeAttributes({ 'data-geoinsight': 'true' }, HTMLAttributes), ['code', 0]];
+  },
+
+  addNodeView() {
+    return createGeoInsightNodeView();
+  },
+});

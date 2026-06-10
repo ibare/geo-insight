@@ -1,0 +1,66 @@
+{
+  "name": "@geoinsight/tiptap",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Tiptap NodeView for GeoInsight — embed deterministic, semantic geographic diagrams (\"Mermaid for maps\") inside your document via a ```geoinsight fence.",
+  "license": "MIT",
+  "author": "ibare",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ibare/geo-insight.git",
+    "directory": "packages/host-tiptap-bundle"
+  },
+  "homepage": "https://github.com/ibare/geo-insight#readme",
+  "bugs": "https://github.com/ibare/geo-insight/issues",
+  "keywords": [
+    "geoinsight",
+    "tiptap",
+    "tiptap-extension",
+    "nodeview",
+    "editor",
+    "map",
+    "geography",
+    "svg"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/tiptap.js",
+  "types": "./dist/tiptap.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/tiptap.d.ts",
+      "import": "./dist/tiptap.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "rollup -c rollup.config.mjs",
+    "build:analyze": "VISUALIZE=1 rollup -c rollup.config.mjs",
+    "typecheck": "tsc --noEmit",
+    "pack": "pnpm build && npm pack"
+  },
+  "peerDependencies": {
+    "@tiptap/core": "^3.22.5",
+    "@tiptap/pm": "^3.22.5"
+  },
+  "devDependencies": {
+    "@geoinsight/host-tiptap": "workspace:*",
+    "@rollup/plugin-commonjs": "^28.0.1",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^15.3.0",
+    "@rollup/plugin-replace": "^6.0.1",
+    "@tiptap/core": "^3.23.4",
+    "@tiptap/pm": "^3.23.4",
+    "postcss-import": "^16.1.0",
+    "rollup": "^4.28.0",
+    "rollup-plugin-dts": "^6.1.1",
+    "rollup-plugin-esbuild": "^6.1.1",
+    "rollup-plugin-postcss": "^4.0.2",
+    "rollup-plugin-visualizer": "^5.12.0",
+    "typescript": "5.6.3"
+  }
+}

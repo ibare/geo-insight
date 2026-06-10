@@ -1,0 +1,28 @@
+/*
+ * GeoInsight 런타임 컨테이너 스타일.
+ *
+ * NodeView 가 [data-geoinsight-root] 컨테이너 안에 SVG 를 마운트한다. geoinsight-*
+ * prefix 가 호스트 전역 CSS 와의 충돌을 막는 봉인 역할.
+ */
+
+[data-geoinsight-root] {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0f1726;
+  border-radius: 6px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+[data-geoinsight-root] svg.geoinsight {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+[data-geoinsight-root] .gi-label,
+[data-geoinsight-root] .gi-label-halo {
+  pointer-events: none;
+}

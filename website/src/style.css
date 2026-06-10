@@ -1,0 +1,153 @@
+:root {
+  --bg: #0b121f;
+  --panel: #131c2c;
+  --border: #25324a;
+  --text: #e7edf5;
+  --muted: #8a99ad;
+  --accent: #3fb6ab;
+  --error: #e1604f;
+  --warn: #d98a3a;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  overflow: hidden;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+}
+header h1 {
+  font-size: 16px;
+  margin: 0;
+  letter-spacing: 0.3px;
+}
+header .tag {
+  font-size: 12px;
+  color: var(--muted);
+}
+header .presets {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+header button {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+header button:hover {
+  border-color: var(--accent);
+}
+
+main {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  flex: 1;
+  min-height: 0;
+}
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  min-height: 0;
+}
+.editor textarea {
+  flex: 1;
+  resize: none;
+  background: #0e1626;
+  color: var(--text);
+  border: none;
+  outline: none;
+  padding: 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  tab-size: 2;
+}
+.diagnostics {
+  border-top: 1px solid var(--border);
+  max-height: 180px;
+  overflow: auto;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-family: ui-monospace, monospace;
+}
+.diagnostics:empty::after {
+  content: '진단 없음 ✓';
+  color: var(--muted);
+}
+.diag {
+  padding: 3px 0;
+}
+.diag.error {
+  color: var(--error);
+}
+.diag.warning {
+  color: var(--warn);
+}
+.diag .sugg {
+  color: var(--muted);
+}
+
+.preview {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.preview .map {
+  flex: 1;
+  min-height: 0;
+}
+.preview .hint {
+  position: absolute;
+  bottom: 10px;
+  right: 14px;
+  font-size: 11px;
+  color: var(--muted);
+  background: rgba(11, 18, 31, 0.7);
+  padding: 4px 8px;
+  border-radius: 5px;
+  pointer-events: none;
+}
+.preview .toolbar {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  display: flex;
+  gap: 6px;
+}
+.preview .toolbar button {
+  background: rgba(19, 28, 44, 0.85);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
