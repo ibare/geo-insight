@@ -82,6 +82,21 @@ export function attachEditing(params: EditingParams): EditingController {
   const toolbar = document.createElement('div');
   toolbar.className = 'gi-edit-chips';
 
+  // 펼침 상태 + 바깥 클릭 시 접기(메뉴와 동일 패턴, 단 비차단).
+  let outsideChipsHandler: ((e: PointerEvent) => void) | null = null;
+  const setChipsExpanded = (expanded: boolean): void => {
+    toolbar.classList.toggle('expanded', expanded);
+    if (expanded && !outsideChipsHandler) {
+      outsideChipsHandler = (e: PointerEvent) => {
+        if (!toolbar.contains(e.target as Node)) setChipsExpanded(false);
+      };
+      window.addEventListener('pointerdown', outsideChipsHandler);
+    } else if (!expanded && outsideChipsHandler) {
+      window.removeEventListener('pointerdown', outsideChipsHandler);
+      outsideChipsHandler = null;
+    }
+  };
+
   const moreBtn = document.createElement('button');
   moreBtn.type = 'button';
   moreBtn.className = 'gi-edit-chip gi-chip-more';
@@ -89,7 +104,7 @@ export function attachEditing(params: EditingParams): EditingController {
   moreBtn.setAttribute('aria-label', '대륙 추가');
   moreBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    toolbar.classList.add('expanded');
+    setChipsExpanded(true);
   });
   toolbar.appendChild(moreBtn);
 
@@ -378,6 +393,7 @@ export function attachEditing(params: EditingParams): EditingController {
       svg.removeEventListener('pointerdown', onDown);
       svg.removeEventListener('pointerup', onUp);
       closeMenu();
+      if (outsideChipsHandler) window.removeEventListener('pointerdown', outsideChipsHandler);
       highlight.remove();
       tooltip.remove();
       toolbar.remove();

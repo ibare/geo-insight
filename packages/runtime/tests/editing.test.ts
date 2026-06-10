@@ -86,6 +86,28 @@ describe('editing — 지도 클릭으로 국가 토글', () => {
     instance.destroy();
   });
 
+  it('펼쳐진 상태에서 바깥(window) 클릭 시 다시 접힌다', () => {
+    const el = document.createElement('div');
+    const instance = mount(el, 'earth:\n  show: 아프리카', { editable: true });
+    el.querySelector<HTMLButtonElement>('.gi-chip-more')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(el.querySelector('.gi-edit-chips')!.classList.contains('expanded')).toBe(true);
+    // 툴바 바깥(여기선 window) pointerdown → 접힘
+    window.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+    expect(el.querySelector('.gi-edit-chips')!.classList.contains('expanded')).toBe(false);
+    instance.destroy();
+  });
+
+  it('펼친 상태에서 툴바 안 클릭은 접지 않는다', () => {
+    const el = document.createElement('div');
+    const instance = mount(el, 'earth:\n  show: 아프리카', { editable: true });
+    const toolbar = el.querySelector('.gi-edit-chips')!;
+    el.querySelector<HTMLButtonElement>('.gi-chip-more')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    // 툴바 자체에서 발생한 pointerdown (target 이 toolbar 내부)
+    toolbar.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+    expect(toolbar.classList.contains('expanded')).toBe(true);
+    instance.destroy();
+  });
+
   it('대륙 선택 후 재렌더되면 다시 접힌다 + show 에 추가', () => {
     const el = document.createElement('div');
     let lastSource = '';
