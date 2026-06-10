@@ -77,6 +77,41 @@ describe('editing — 지도 클릭으로 국가 토글', () => {
     const el = document.createElement('div');
     const instance = mount(el, 'earth:\n  show: 아프리카', { editable: false });
     expect(el.querySelectorAll('.gi-edit-chip').length).toBe(0);
+    expect(el.querySelector('.gi-edit-gizmo')).toBeNull();
+    instance.destroy();
+  });
+});
+
+describe('editing — 회전 기즈모(center)', () => {
+  it('기즈모가 렌더되고 현재 center 를 라벨로 보인다', () => {
+    const el = document.createElement('div');
+    const instance = mount(el, 'earth "t":\n  center: 태평양\n  show: 아프리카', { editable: true });
+    const label = el.querySelector('.gi-gizmo-label');
+    expect(label?.textContent).toContain('180'); // 태평양 = 180
+    instance.destroy();
+  });
+
+  it('기즈모를 우측으로 돌리면 center 가 동경(~90E)으로 갱신된다', () => {
+    const el = document.createElement('div');
+    let lastSource = '';
+    const instance = mount(el, 'earth:\n  show: 아프리카', {
+      editable: true,
+      onChange: (s) => {
+        lastSource = s;
+      },
+    });
+    const giz = el.querySelector<SVGSVGElement>('.gi-edit-gizmo svg')!;
+    Object.defineProperty(giz, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ left: 0, top: 0, width: 76, height: 76, right: 76, bottom: 76, x: 0, y: 0 }),
+    });
+    // 중심(38,38) 기준 우측 → 90E
+    el.querySelector('.gi-edit-gizmo')!.dispatchEvent(
+      new MouseEvent('pointerdown', { clientX: 38, clientY: 38, bubbles: true }),
+    );
+    window.dispatchEvent(new MouseEvent('pointermove', { clientX: 74, clientY: 38 }));
+    window.dispatchEvent(new MouseEvent('pointerup', {}));
+    expect(lastSource).toMatch(/center: 9\d/); // 약 90E
     instance.destroy();
   });
 });

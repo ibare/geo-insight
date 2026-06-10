@@ -141,3 +141,57 @@
   margin: 4px 0;
   background: rgba(127, 140, 158, 0.25);
 }
+
+/* 회전 기즈모(지구본 노브) */
+[data-geoinsight-root] .gi-edit-gizmo {
+  position: absolute;
+  z-index: 4;
+  left: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 8px 5px;
+  background: rgba(15, 23, 38, 0.82);
+  border: 1px solid rgba(127, 140, 158, 0.35);
+  border-radius: 10px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+[data-geoinsight-root] .gi-edit-gizmo:active {
+  cursor: grabbing;
+}
+[data-geoinsight-root] .gi-gizmo-ring {
+  fill: rgba(63, 182, 171, 0.06);
+  stroke: rgba(127, 140, 158, 0.5);
+  stroke-width: 1;
+}
+[data-geoinsight-root] .gi-gizmo-axis {
+  stroke: rgba(127, 140, 158, 0.25);
+  stroke-width: 1;
+}
+[data-geoinsight-root] .gi-gizmo-needle {
+  stroke: #3fb6ab;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+[data-geoinsight-root] .gi-gizmo-hub {
+  fill: #3fb6ab;
+}
+[data-geoinsight-root] .gi-gizmo-handle {
+  fill: #e7edf5;
+  stroke: #3fb6ab;
+  stroke-width: 1.5;
+}
+[data-geoinsight-root] .gi-gizmo-tick {
+  fill: #8a99ad;
+  font-size: 7px;
+  font-family: system-ui, sans-serif;
+}
+[data-geoinsight-root] .gi-gizmo-label {
+  font-size: 11px;
+  color: #cdd6e2;
+  font-family: system-ui, sans-serif;
+}

@@ -13,6 +13,7 @@ export {
   hasShowName,
   addLink,
   removeLink,
+  setCenter,
 } from './edit.js';
 
 export type {

@@ -144,6 +144,24 @@ export function addLink(source: string, from: string, to: string): string {
   return lines.join('\n');
 }
 
+/**
+ * 중앙 자오선(center) 설정 — 회전 기즈모용. 경도(정수)를 center 라인에 기록한다.
+ * 수동 center 는 arrange 보다 우선이어야 하므로(build-scene 은 arrange 를 먼저 봄)
+ * 기존 arrange 라인을 제거한다.
+ */
+export function setCenter(source: string, lon: number): string {
+  const v = Math.round(((((lon + 180) % 360) + 360) % 360) - 180); // wrap[-180,180]
+  const lines = splitLines(source).filter((l) => !/^\s*arrange\s*:/.test(l));
+  const idx = findPropLine(lines, 'center');
+  if (idx >= 0) {
+    const ind = /^(\s*)/.exec(lines[idx]!)![1]!;
+    lines[idx] = `${ind}center: ${v}`;
+  } else {
+    insertAfter(lines, headerIndex(lines), `${detectIndent(lines)}center: ${v}`);
+  }
+  return lines.join('\n');
+}
+
 /** `link: from -> to` 제거. */
 export function removeLink(source: string, from: string, to: string): string {
   const nf = normalizeName(from);

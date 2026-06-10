@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addLink, addShowName, hasShowName, removeLink, removeShowName } from '../src/edit.js';
+import { addLink, addShowName, hasShowName, removeLink, removeShowName, setCenter } from '../src/edit.js';
 import { createLocator } from '../src/locate.js';
 import { compile } from '../src/compile.js';
 import { createResolver } from '@geoinsight/data';
@@ -49,6 +49,26 @@ describe('DSL 패치 — addLink/removeLink', () => {
     expect(addLink(src, '수단', '인도')).toBe(src); // 중복 방지
     src = removeLink(src, '수단', '인도');
     expect(src).not.toContain('link:');
+  });
+});
+
+describe('DSL 패치 — setCenter', () => {
+  it('center 라인이 없으면 헤더 다음에 생성', () => {
+    const out = setCenter(`earth:\n  show: 아프리카`, 137);
+    expect(out.split('\n')[1]).toBe('  center: 137');
+  });
+  it('기존 center 라인 갱신', () => {
+    const out = setCenter(`earth:\n  center: 0\n  show: 아프리카`, -60);
+    expect(out).toContain('center: -60');
+    expect(out).not.toContain('center: 0');
+  });
+  it('경도 wrap[-180,180] + 정수화', () => {
+    expect(setCenter(`earth:\n  show: 인도`, 200.6)).toContain('center: -159');
+  });
+  it('수동 center 는 arrange 를 제거(우선)', () => {
+    const out = setCenter(`earth:\n  arrange: 아프리카 -> 아메리카\n  show: 아프리카`, 90);
+    expect(out).not.toContain('arrange:');
+    expect(out).toContain('center: 90');
   });
 });
 
