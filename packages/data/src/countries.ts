@@ -131,15 +131,21 @@ function features(): GeoFeature[] {
   return cached;
 }
 
-/** 기본 DataSource — 번들된 world-atlas 50m + world-countries. */
+/** 기본 DataSource — 번들된 world-atlas 50m + world-countries. ADM1 은 주입 전까지 비어있다. */
 export function createDefaultDataSource(): DataSource {
   const byCode = new Map<string, GeoFeature>();
   for (const f of features()) {
     if (f.id) byCode.set(f.id, f);
   }
+  // ccn3 → 로드된 ADM1 feature 목록. 외부 로더가 loadAdm1 로 채운다.
+  const adm1Store = new Map<string, GeoFeature[]>();
   return {
     countryByCode: (ccn3) => byCode.get(ccn3),
     allCountries: () => features(),
+    adm1: (ccn3) => adm1Store.get(ccn3) ?? [],
+    loadAdm1: (ccn3, fs) => {
+      adm1Store.set(ccn3, fs);
+    },
   };
 }
 

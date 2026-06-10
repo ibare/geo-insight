@@ -5,3 +5,7 @@ dist/
 stats.html
 coverage/
 *.tgz
+
+# ADM 전처리 중간 산출물(원본 다운로드/분리). assets/ 는 커밋 대상.
+.scratch/
+packages/*/.cache/

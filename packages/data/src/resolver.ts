@@ -10,9 +10,10 @@
  * 모든 경로는 동기. 결과 feature 순서는 allCountries(ccn3 오름차순)를 따른다 — 결정적.
  */
 
+import { adm1InCountry, adm1NameIndex } from './adm1.js';
 import { createDefaultDataSource, rawCountries, type RawCountry } from './countries.js';
 import { GROUP_BY_ALIAS, GROUP_DEFS, normalizeName } from './groups.js';
-import type { DataSource, GeoFeature, ResolveResult, Resolver, SearchHit } from './types.js';
+import type { Adm1IndexEntry, DataSource, GeoFeature, ResolveResult, Resolver, SearchHit } from './types.js';
 
 interface NameIndexEntry {
   ccn3: string;
@@ -72,6 +73,36 @@ export function createResolver(opts: ResolverOptions = {}): Resolver {
     return { kind: 'country', key: e.ccn3, display: e.display, features: f ? [f] : [] };
   };
 
+  // ── ADM1 (주/도) — gazetteer 는 항상 있지만 지오메트리가 로드된 국가만 해석 대상.
+  const adm1Names = adm1NameIndex();
+  const isLoaded = (ccn3: string): boolean => dataSource.adm1(ccn3).length > 0;
+  const adm1Feature = (e: Adm1IndexEntry): GeoFeature | undefined =>
+    dataSource.adm1(e.adm0).find((f) => f.id === e.code);
+  const asAdm1 = (e: Adm1IndexEntry): ResolveResult => {
+    const f = adm1Feature(e);
+    return { kind: 'adm1', key: e.code, display: e.kor || e.name, features: f ? [f] : [], adm0: e.adm0 };
+  };
+  /** 로드된 국가들 안에서 이름이 정확히 하나의 ADM1 로 해석되면 그것. 아니면 null. */
+  const resolveAdm1 = (norm: string): ResolveResult | null => {
+    const matches = (adm1Names.get(norm) ?? []).filter((e) => isLoaded(e.adm0));
+    if (matches.length === 1) return asAdm1(matches[0]!);
+    return null; // 0개(미로드/없음) 또는 복수(국가 스코프 필요) → 상위 흐름에 위임
+  };
+  /** 'A.B' 스코프 표기 — A=국가, B=그 국가의 ADM1. */
+  const resolveScoped = (raw: string): ResolveResult | null => {
+    const dot = raw.indexOf('.');
+    if (dot < 0) return null;
+    const parentName = raw.slice(0, dot).trim();
+    const childName = raw.slice(dot + 1).trim();
+    if (!parentName || !childName) return null;
+    const parentEntries = exactIndex.get(normalizeName(parentName));
+    const parent = parentEntries && parentEntries.length > 0 ? resolveCountry(parentEntries) : null;
+    if (!parent || parent.kind !== 'country') return null;
+    const cands = adm1InCountry(parent.key, childName).filter((e) => isLoaded(e.adm0));
+    if (cands.length >= 1) return asAdm1(cands[0]!);
+    return { kind: 'unknown', suggestions: adm1InCountry(parent.key, childName).map((e) => e.kor) };
+  };
+
   const resolveCountry = (entries: NameIndexEntry[]): ResolveResult => {
     if (entries.length === 1) return asCountry(entries[0]!);
     // 복수 → 독립 주권국(UN 회원)이 유일하면 그것으로 결정 (예: '인도' India↔영국령 인도양 지역).
@@ -97,6 +128,12 @@ export function createResolver(opts: ResolverOptions = {}): Resolver {
 
   return {
     resolve(rawName: string): ResolveResult {
+      // 0. 'A.B' 스코프 표기 (국가.ADM1)
+      if (rawName.includes('.')) {
+        const scoped = resolveScoped(rawName);
+        if (scoped) return scoped;
+      }
+
       const norm = normalizeName(rawName);
       if (!norm) return { kind: 'unknown', suggestions: [] };
 
@@ -104,11 +141,15 @@ export function createResolver(opts: ResolverOptions = {}): Resolver {
       const group = resolveGroup(norm);
       if (group) return group;
 
-      // 2. 정확 일치
+      // 2. 국가 정확 일치 (ADM1 보다 우선 — 예: Georgia 는 국가)
       const exact = exactIndex.get(norm);
       if (exact && exact.length > 0) return resolveCountry(exact);
 
-      // 3/4. 부분 일치
+      // 3. ADM1 (로드된 국가 한정, 정확히 하나일 때)
+      const adm1 = resolveAdm1(norm);
+      if (adm1) return adm1;
+
+      // 4/5. 부분 일치
       const partial = partialCandidates(norm);
       if (partial.length === 1) return resolveCountry(partial);
       if (partial.length > 1) {
