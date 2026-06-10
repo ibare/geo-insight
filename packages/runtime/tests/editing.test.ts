@@ -143,6 +143,18 @@ describe('editing — 선택된 국가 메뉴(링크)', () => {
     instance.destroy();
   });
 
+  it('메뉴 밖(백드롭) 클릭 시 메뉴가 닫힌다', () => {
+    const el = document.createElement('div');
+    const instance = mount(el, 'earth:\n  show: 수단, 인도', { editable: true });
+    clickSudan(el, instance);
+    expect(el.querySelector('.gi-edit-menu')).toBeTruthy();
+    const backdrop = el.querySelector<HTMLElement>('.gi-edit-backdrop')!;
+    backdrop.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+    expect(el.querySelector('.gi-edit-menu')).toBeNull();
+    expect(el.querySelector('.gi-edit-backdrop')).toBeNull();
+    instance.destroy();
+  });
+
   it('메뉴 제거 항목 → show 에서 제거', () => {
     const el = document.createElement('div');
     let lastSource = '';

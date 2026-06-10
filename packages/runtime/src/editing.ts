@@ -117,6 +117,7 @@ export function attachEditing(params: EditingParams): EditingController {
       closeMenu();
     });
     host.appendChild(backdrop);
+    backdropEl = backdrop;
 
     const menu = document.createElement('div');
     menu.className = 'gi-edit-menu';
@@ -166,6 +167,7 @@ export function attachEditing(params: EditingParams): EditingController {
     menu.appendChild(removeItem);
 
     host.appendChild(menu);
+    menuEl = menu;
 
     // 위치(호스트 내 클램프)
     const hostRect = host.getBoundingClientRect();
