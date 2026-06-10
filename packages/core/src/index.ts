@@ -7,6 +7,7 @@ export { parse } from './parser.js';
 export { registerExtProjection } from './projection.js';
 export { cameraFromMeta, type MetaCamera } from './passes/camera.js';
 export { createLocator, type Locator, type LocatedCountry } from './locate.js';
+export { adm1CountriesFor } from './adm1-detect.js';
 export {
   addShowName,
   removeShowName,

@@ -6,12 +6,18 @@
  */
 
 import {
+  adm1CountriesFor,
   cameraFromMeta,
   compile,
+  createDefaultDataSource,
   createLocator,
+  createResolver,
   type CompileResult,
+  type DataSource,
+  type GeoFeature,
   type InternalOptions,
   type Locator,
+  type Resolver,
 } from '@geoinsight/core';
 import { attachZoomPan, type ViewBox, type ZoomPanController } from './zoom-pan.js';
 import { attachEditing, type EditingController } from './editing.js';
@@ -25,6 +31,11 @@ export interface MountOptions extends InternalOptions {
   onChange?: (source: string) => void;
   /** 컴파일 진단 콜백. */
   onDiagnostics?: (d: CompileResult['diagnostics']) => void;
+  /**
+   * ADM1 지연 로더 — show/showOnly 에 등장한 국가(ccn3)의 주/도 지오메트리를 비동기로
+   * 가져온다. 제공되면 compile 전에 필요한 국가를 fetch·주입하고 렌더. 미제공 시 ADM1 미지원.
+   */
+  loadAdm1?: (ccn3: string) => Promise<GeoFeature[] | null>;
 }
 
 export interface GeoInstance {
@@ -52,6 +63,12 @@ export function mount(
   // locate 색인은 비싸지 않지만 편집 재렌더마다 재생성 않도록 공유.
   let locator: Locator | null = null;
 
+  // 영속 DataSource/resolver — 렌더 간 ADM1 로드 상태를 유지해야 한다(매번 새로 만들면 소실).
+  const dataSource: DataSource = opts.dataSource ?? createDefaultDataSource();
+  const resolver: Resolver = opts.resolver ?? createResolver({ dataSource });
+  const compileOpts: MountOptions = { ...opts, dataSource, resolver };
+  const adm1InFlight = new Set<string>();
+
   const teardown = (): void => {
     editing?.destroy();
     editing = null;
@@ -59,9 +76,35 @@ export function mount(
     controller = null;
   };
 
+  /** 필요한 ADM1 국가를 먼저 비동기 로드한 뒤 render. 로더 없으면 즉시 동기 렌더. */
+  const ensureAndRender = async (input: string | CompileResult): Promise<void> => {
+    if (typeof input === 'string' && opts.loadAdm1) {
+      const need = adm1CountriesFor(input, resolver).filter(
+        (c) => dataSource.adm1(c).length === 0 && !adm1InFlight.has(c),
+      );
+      if (need.length > 0) {
+        need.forEach((c) => adm1InFlight.add(c));
+        const loaded = await Promise.all(
+          need.map((c) =>
+            opts
+              .loadAdm1!(c)
+              .then((fs) => [c, fs] as const)
+              .catch(() => [c, null] as const),
+          ),
+        );
+        for (const [c, fs] of loaded) {
+          adm1InFlight.delete(c);
+          if (fs && fs.length > 0) dataSource.loadAdm1(c, fs);
+        }
+        if (destroyed) return;
+      }
+    }
+    render(input);
+  };
+
   const render = (input: string | CompileResult): void => {
     if (destroyed) return;
-    result = typeof input === 'string' ? compile(input, opts) : input;
+    result = typeof input === 'string' ? compile(input, compileOpts) : input;
     if (opts.onDiagnostics) opts.onDiagnostics(result.diagnostics);
 
     teardown();
@@ -93,19 +136,19 @@ export function mount(
         locator,
         applyEdit: (next) => {
           currentSource = next;
-          render(next);
+          void ensureAndRender(next);
           opts.onChange?.(next);
         },
       });
     }
   };
 
-  render(src);
+  void ensureAndRender(src);
 
   return {
     update(next) {
       if (typeof next === 'string') currentSource = next;
-      render(next);
+      void ensureAndRender(next);
     },
     zoomTo(entityKey) {
       if (!svg || !controller) return;

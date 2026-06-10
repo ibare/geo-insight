@@ -1,5 +1,6 @@
 import { mount, type GeoInstance } from '@geoinsight/runtime';
 import type { Diagnostic } from '@geoinsight/core';
+import { loadAdm1Browser } from '@geoinsight/data/browser';
 import { PRESETS } from './presets.js';
 
 /** 바닐라 runtime 플레이그라운드 — 좌측 DSL 에디터 + 우측 줌/팬 맵. */
@@ -44,6 +45,8 @@ export function mountPlayground(host: HTMLElement): () => void {
       instance = mount(mapEl, source, {
         interactive: true,
         editable: true,
+        // show 에 등장한 국가의 ADM1(주/도)을 lazy fetch — 'show: California' 등이 동작.
+        loadAdm1: loadAdm1Browser,
         // 지도 클릭으로 편집 시 textarea 동기화 (runtime 이 이미 재렌더 → update 호출 금지)
         onChange: (next) => {
           textarea.value = next;

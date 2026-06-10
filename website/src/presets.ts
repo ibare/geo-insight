@@ -41,4 +41,11 @@ export const PRESETS: Preset[] = [
   center: 15
   show: 서유럽, 북유럽, 남유럽, 동유럽`,
   },
+  {
+    label: '미국 주 (ADM1)',
+    source: `earth "미국 주":
+  center: -98
+  fit: bbox -125 24 -66 50
+  show: California, Texas, Florida, New York`,
+  },
 ];

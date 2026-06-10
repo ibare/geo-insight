@@ -161,6 +161,9 @@ importers:
       '@geoinsight/core':
         specifier: workspace:*
         version: link:../packages/core
+      '@geoinsight/data':
+        specifier: workspace:*
+        version: link:../packages/data
       '@geoinsight/host-tiptap':
         specifier: workspace:*
         version: link:../packages/host-tiptap

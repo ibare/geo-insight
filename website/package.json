@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@geoinsight/core": "workspace:*",
+    "@geoinsight/data": "workspace:*",
     "@geoinsight/host-tiptap": "workspace:*",
     "@geoinsight/runtime": "workspace:*",
     "@tiptap/core": "^3.22.5",
