@@ -78,23 +78,39 @@ export function attachEditing(params: EditingParams): EditingController {
   tooltip.style.display = 'none';
   host.appendChild(tooltip);
 
-  // ── 대륙 퀵칩 ──
+  // ── 대륙 퀵칩 (기본 접힘: ⋯ 칩, 클릭 시 펼침, 선택 시 재렌더되며 다시 접힘) ──
   const toolbar = document.createElement('div');
   toolbar.className = 'gi-edit-chips';
+
+  const moreBtn = document.createElement('button');
+  moreBtn.type = 'button';
+  moreBtn.className = 'gi-edit-chip gi-chip-more';
+  moreBtn.textContent = '⋯';
+  moreBtn.setAttribute('aria-label', '대륙 추가');
+  moreBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toolbar.classList.add('expanded');
+  });
+  toolbar.appendChild(moreBtn);
+
+  const chipList = document.createElement('div');
+  chipList.className = 'gi-chip-list';
   const chipEls: Array<{ el: HTMLButtonElement; name: string }> = [];
   for (const key of CHIP_KEYS) {
     const def = GROUP_DEFS.find((g) => g.key === key);
     if (!def) continue;
     const chip = document.createElement('button');
+    chip.type = 'button';
     chip.className = 'gi-edit-chip';
     chip.textContent = def.display;
     chip.addEventListener('click', (e) => {
       e.stopPropagation();
-      toggleName(def.display);
+      toggleName(def.display); // 재렌더 → 새 toolbar 는 접힌 상태로 시작
     });
-    toolbar.appendChild(chip);
+    chipList.appendChild(chip);
     chipEls.push({ el: chip, name: def.display });
   }
+  toolbar.appendChild(chipList);
   host.appendChild(toolbar);
   for (const { el, name } of chipEls) el.classList.toggle('active', hasShowName(getSource(), name));
 

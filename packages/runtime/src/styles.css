@@ -52,10 +52,31 @@
   z-index: 4;
   left: 10px;
   top: 10px;
-  display: flex;
+  display: none; /* 캔버스 hover 시에만 노출 */
+  align-items: flex-start;
   flex-wrap: wrap;
   gap: 5px;
-  max-width: 70%;
+  max-width: 80%;
+}
+[data-geoinsight-root]:hover .gi-edit-chips {
+  display: flex;
+}
+/* 접힘: ⋯ 만 보이고 목록 숨김. 펼침: 목록 보이고 ⋯ 숨김. */
+[data-geoinsight-root] .gi-chip-list {
+  display: none;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+[data-geoinsight-root] .gi-edit-chips.expanded .gi-chip-list {
+  display: flex;
+}
+[data-geoinsight-root] .gi-edit-chips.expanded .gi-chip-more {
+  display: none;
+}
+[data-geoinsight-root] .gi-chip-more {
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 3px 12px;
 }
 [data-geoinsight-root] .gi-edit-chip {
   background: rgba(19, 28, 44, 0.85);
@@ -148,7 +169,7 @@
   z-index: 4;
   left: 12px;
   bottom: 12px;
-  display: flex;
+  display: none; /* 캔버스 hover 시에만 노출 */
   flex-direction: column;
   align-items: center;
   gap: 2px;
@@ -159,6 +180,9 @@
   cursor: grab;
   touch-action: none;
   user-select: none;
+}
+[data-geoinsight-root]:hover .gi-edit-gizmo {
+  display: flex;
 }
 [data-geoinsight-root] .gi-edit-gizmo:active {
   cursor: grabbing;

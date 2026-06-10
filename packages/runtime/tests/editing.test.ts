@@ -73,6 +73,39 @@ describe('editing — 지도 클릭으로 국가 토글', () => {
     instance.destroy();
   });
 
+  it('대륙 칩은 기본 접힘(⋯), ⋯ 클릭 시 펼쳐진다', () => {
+    const el = document.createElement('div');
+    const instance = mount(el, 'earth:\n  show: 아프리카', { editable: true });
+    const toolbar = el.querySelector('.gi-edit-chips')!;
+    expect(toolbar.classList.contains('expanded')).toBe(false);
+    expect(el.querySelector('.gi-chip-more')).toBeTruthy();
+    el.querySelector<HTMLButtonElement>('.gi-chip-more')!.dispatchEvent(
+      new MouseEvent('click', { bubbles: true }),
+    );
+    expect(el.querySelector('.gi-edit-chips')!.classList.contains('expanded')).toBe(true);
+    instance.destroy();
+  });
+
+  it('대륙 선택 후 재렌더되면 다시 접힌다 + show 에 추가', () => {
+    const el = document.createElement('div');
+    let lastSource = '';
+    const instance = mount(el, 'earth:\n  show: 아프리카', {
+      editable: true,
+      onChange: (s) => {
+        lastSource = s;
+      },
+    });
+    el.querySelector<HTMLButtonElement>('.gi-chip-more')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const asia = [...el.querySelectorAll<HTMLButtonElement>('.gi-chip-list .gi-edit-chip')].find(
+      (c) => c.textContent === '아시아',
+    )!;
+    asia.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(lastSource).toContain('아시아');
+    // 재렌더된 새 toolbar 는 접힌 상태
+    expect(el.querySelector('.gi-edit-chips')!.classList.contains('expanded')).toBe(false);
+    instance.destroy();
+  });
+
   it('editable=false 면 편집 오버레이가 없다', () => {
     const el = document.createElement('div');
     const instance = mount(el, 'earth:\n  show: 아프리카', { editable: false });
