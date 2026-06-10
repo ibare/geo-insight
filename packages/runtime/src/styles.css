@@ -23,7 +23,8 @@
 }
 
 [data-geoinsight-root] .gi-label,
-[data-geoinsight-root] .gi-label-halo {
+[data-geoinsight-root] .gi-label-halo,
+[data-geoinsight-root] .gi-ocean-label {
   pointer-events: none;
 }
 

@@ -13,10 +13,12 @@ import { parse } from './parser.js';
 import { resolveTheme } from './theme.js';
 import type { Theme } from './types.js';
 import { buildScene } from './passes/build-scene.js';
-import { createCamera } from './passes/camera.js';
+import { cameraFromMeta, createCamera } from './passes/camera.js';
 import { layoutLabels } from './passes/labels.js';
+import { layoutOceans } from './passes/oceans.js';
 import { routeLinks } from './passes/links.js';
 import { emit } from './passes/emit.js';
+import { createLocator } from './locate.js';
 import type { CompileOptions, CompileResult, Entity, Label, Link, Scene } from './types.js';
 
 export interface InternalOptions extends CompileOptions {
@@ -73,6 +75,19 @@ export function compile(source: string, opts: InternalOptions = {}): CompileResu
   // Link routing
   const routed = routeLinks(camera, built.links, entityMap);
 
+  // 5대양 라벨 (항상 표시) — unproject/역지오코딩으로 가장자리 끌어오기 보정
+  const metaCam = cameraFromMeta(camera.meta);
+  const locator = createLocator(dataSource);
+  const oceans = layoutOceans({
+    project: (ll) => camera.project(ll),
+    unproject: (xy) => metaCam.unproject(xy),
+    width,
+    height,
+    projType: built.config.projectionType,
+    centerLon: -camera.meta.projectionParams.rotate[0],
+    isWater: (ll) => locator.locate(ll) === null,
+  });
+
   // Scene IR (툴링/검사용)
   const links: Link[] = built.links.map((l) => {
     const link: Link = {
@@ -106,7 +121,7 @@ export function compile(source: string, opts: InternalOptions = {}): CompileResu
   if (built.config.title) scene.title = built.config.title;
 
   // Emit
-  const svg = emit({ scene, camera, entities: built.entities, links: routed, labels: placed, theme, dataSource });
+  const svg = emit({ scene, camera, entities: built.entities, links: routed, labels: placed, oceans, theme, dataSource });
 
   return { svg, scene, diagnostics, meta: camera.meta };
 }

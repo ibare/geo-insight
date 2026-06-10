@@ -29,6 +29,7 @@ export const DEFAULT_THEME: Theme = {
   focusAccent: ['#e1604f', '#3fb6ab'],
   linkColor: '#3fb6ab',
   label: { fill: '#eef2f7', halo: '#0f1726', font: 'system-ui, sans-serif', size: 13 },
+  oceanLabel: { fill: '#46586f', size: 15, spacing: 2 },
   tokens: COLOR_TOKENS,
 };
 
@@ -43,6 +44,7 @@ export function resolveTheme(override?: Partial<Theme>): Theme {
     ...DEFAULT_THEME,
     ...override,
     label: { ...DEFAULT_THEME.label, ...(override.label ?? {}) },
+    oceanLabel: { ...DEFAULT_THEME.oceanLabel, ...(override.oceanLabel ?? {}) },
     tokens: { ...DEFAULT_THEME.tokens, ...(override.tokens ?? {}) },
   };
 }

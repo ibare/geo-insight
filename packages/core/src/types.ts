@@ -62,6 +62,8 @@ export interface Theme {
   focusAccent: string[];
   linkColor: string;
   label: { fill: string; halo: string; font: string; size: number };
+  /** 5대양 라벨(항상 표시) 스타일. */
+  oceanLabel: { fill: string; size: number; spacing: number };
   /** named 토큰(amber/coral/teal 등) → hex. */
   tokens: Record<string, string>;
 }

@@ -13,6 +13,7 @@ import type { Entity, Scene, Theme } from '../types.js';
 import type { Camera } from './camera.js';
 import type { PlacedLabel } from './labels.js';
 import type { RoutedLink } from './links.js';
+import type { PlacedOcean } from './oceans.js';
 
 export interface EmitInput {
   scene: Scene;
@@ -20,12 +21,13 @@ export interface EmitInput {
   entities: Entity[];
   links: RoutedLink[];
   labels: PlacedLabel[];
+  oceans: PlacedOcean[];
   theme: Theme;
   dataSource: DataSource;
 }
 
 export function emit(input: EmitInput): string {
-  const { camera, entities, links, labels, theme, dataSource } = input;
+  const { camera, entities, links, labels, oceans, theme, dataSource } = input;
   const [vx, vy, vw, vh] = camera.meta.viewBox;
   const out: string[] = [];
 
@@ -56,6 +58,18 @@ export function emit(input: EmitInput): string {
         'stroke-width': '0.4',
       }),
     );
+
+  // 3.5 5대양 라벨 (항상 표시, 엔티티/링크 아래)
+  if (oceans.length > 0) {
+    out.push(
+      `<g class="gi-oceans" font-family="${escapeAttr(theme.label.font)}" font-size="${theme.oceanLabel.size}" ` +
+        `font-style="italic" text-anchor="middle" fill="${theme.oceanLabel.fill}" letter-spacing="${theme.oceanLabel.spacing}">`,
+    );
+    for (const o of oceans) {
+      out.push(`<text x="${o.x}" y="${o.y}" class="gi-ocean-label">${escapeText(o.text)}</text>`);
+    }
+    out.push('</g>');
+  }
 
   // 4. 엔티티 (z 순서 — 이미 정렬됨)
   for (const ent of entities) {
