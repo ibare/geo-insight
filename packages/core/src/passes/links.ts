@@ -27,7 +27,11 @@ export interface RoutedPath {
 }
 
 export interface RoutedLink {
+  from: string; // entity key
+  to: string; // entity key
   paths: RoutedPath[];
+  /** 클릭 히트테스트용 중심선 path(투명 넓은 stroke 로 emit). */
+  hit: string;
   label?: { text: string; x: number; y: number };
 }
 
@@ -108,7 +112,8 @@ function routeOne(camera: Camera, link: LinkSpec, from: Entity, to: Entity): Rou
   const renderer = rendererRegistry.get(link.type) ?? builtinRenderer(link.type);
   const paths = renderer({ body, tip, tangent, style: link.style });
 
-  const routed: RoutedLink = { paths };
+  // 히트 영역: 시작~tip 전체 중심선(arrowhead 포함 위해 tip 까지).
+  const routed: RoutedLink = { from: link.from, to: link.to, paths, hit: strokePath([...body, tip]) };
   if (link.label) {
     const p = labelPoint(body, tip, link.labelAt);
     routed.label = { text: link.label, x: round(p[0], 2), y: round(p[1] - 8, 2) };

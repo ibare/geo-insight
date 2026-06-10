@@ -19,8 +19,12 @@ import {
   removeLink,
   removeShowName,
   setCenter,
+  setLinkLabel,
+  setLinkType,
   type CompileResult,
   type Entity,
+  type Link,
+  type LinkType,
   type LocatedCountry,
   type Locator,
   type MetaCamera,
@@ -187,7 +191,8 @@ export function attachEditing(params: EditingParams): EditingController {
     backdropEl = null;
   };
 
-  const openMenu = (entity: Entity, clientX: number, clientY: number): void => {
+  /** backdrop + 빈 메뉴 셸 생성 → build 로 내용 채우고 위치. */
+  const openMenuShell = (clientX: number, clientY: number, build: (menu: HTMLElement) => void): void => {
     closeMenu();
     const backdrop = document.createElement('div');
     backdrop.className = 'gi-edit-backdrop';
@@ -200,55 +205,10 @@ export function attachEditing(params: EditingParams): EditingController {
 
     const menu = document.createElement('div');
     menu.className = 'gi-edit-menu';
-
-    const title = document.createElement('div');
-    title.className = 'gi-edit-menu-title';
-    title.textContent = entity.display;
-    menu.appendChild(title);
-
-    const others = scene.entities.filter((e) => e.key !== entity.key);
-    if (others.length > 0) {
-      const section = document.createElement('div');
-      section.className = 'gi-edit-menu-section';
-      section.textContent = '연결 / 해제';
-      menu.appendChild(section);
-      for (const other of others) {
-        const connected = isLinked(entity.key, other.key);
-        const item = document.createElement('button');
-        item.className = `gi-edit-menu-item${connected ? ' connected' : ''}`;
-        item.textContent = `${connected ? '✓ ' : ''}${other.display}`;
-        item.addEventListener('click', (e) => {
-          e.stopPropagation();
-          toggleLink(entity, other, connected);
-        });
-        menu.appendChild(item);
-      }
-    } else {
-      const hint = document.createElement('div');
-      hint.className = 'gi-edit-menu-hint';
-      hint.textContent = '연결할 다른 선택 항목이 없습니다';
-      menu.appendChild(hint);
-    }
-
-    const sep = document.createElement('div');
-    sep.className = 'gi-edit-menu-sep';
-    menu.appendChild(sep);
-
-    const removeItem = document.createElement('button');
-    removeItem.className = 'gi-edit-menu-item danger';
-    removeItem.textContent = '이 국가 제거';
-    removeItem.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const next = removeShowName(getSource(), entity.display);
-      if (next !== getSource()) applyEdit(next);
-      else closeMenu();
-    });
-    menu.appendChild(removeItem);
-
+    build(menu);
     host.appendChild(menu);
     menuEl = menu;
 
-    // 위치(호스트 내 클램프)
     const hostRect = host.getBoundingClientRect();
     const mw = menu.offsetWidth || 180;
     const mh = menu.offsetHeight || 160;
@@ -256,6 +216,122 @@ export function attachEditing(params: EditingParams): EditingController {
     const top = Math.min(clientY - hostRect.top, Math.max(0, hostRect.height - mh - 4));
     menu.style.left = `${Math.max(4, left)}px`;
     menu.style.top = `${Math.max(4, top)}px`;
+  };
+
+  const addTitle = (menu: HTMLElement, text: string): void => {
+    const t = document.createElement('div');
+    t.className = 'gi-edit-menu-title';
+    t.textContent = text;
+    menu.appendChild(t);
+  };
+  const addSection = (menu: HTMLElement, text: string): void => {
+    const s = document.createElement('div');
+    s.className = 'gi-edit-menu-section';
+    s.textContent = text;
+    menu.appendChild(s);
+  };
+  const addSep = (menu: HTMLElement): void => {
+    const s = document.createElement('div');
+    s.className = 'gi-edit-menu-sep';
+    menu.appendChild(s);
+  };
+  const addItem = (
+    menu: HTMLElement,
+    text: string,
+    onClick: () => void,
+    opts: { connected?: boolean; danger?: boolean } = {},
+  ): void => {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = `gi-edit-menu-item${opts.connected ? ' connected' : ''}${opts.danger ? ' danger' : ''}`;
+    item.textContent = `${opts.connected ? '✓ ' : ''}${text}`;
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onClick();
+    });
+    menu.appendChild(item);
+  };
+
+  /** 편집 적용 헬퍼 — 바뀌면 applyEdit, 아니면 메뉴만 닫기. */
+  const commit = (next: string): void => {
+    if (next !== getSource()) applyEdit(next);
+    else closeMenu();
+  };
+
+  const entityDisplay = (key: string): string =>
+    scene.entities.find((e) => e.key === key)?.display ?? key;
+
+  // ── 국가 메뉴 ──
+  const openMenu = (entity: Entity, clientX: number, clientY: number): void => {
+    openMenuShell(clientX, clientY, (menu) => {
+      addTitle(menu, entity.display);
+      const others = scene.entities.filter((e) => e.key !== entity.key);
+      if (others.length > 0) {
+        addSection(menu, '연결 / 해제');
+        for (const other of others) {
+          const connected = isLinked(entity.key, other.key);
+          addItem(menu, other.display, () => toggleLink(entity, other, connected), { connected });
+        }
+      } else {
+        const hint = document.createElement('div');
+        hint.className = 'gi-edit-menu-hint';
+        hint.textContent = '연결할 다른 선택 항목이 없습니다';
+        menu.appendChild(hint);
+      }
+      addSep(menu);
+      addItem(menu, '이 국가 제거', () => commit(removeShowName(getSource(), entity.display)), { danger: true });
+    });
+  };
+
+  // ── 링크 메뉴 (타입/라벨/제거) ──
+  const LINK_TYPES: Array<{ type: LinkType; label: string }> = [
+    { type: 'arrow', label: '화살표' },
+    { type: 'wind', label: '바람' },
+    { type: 'current', label: '해류' },
+    { type: 'route', label: '경로' },
+  ];
+
+  const openLinkMenu = (link: Link, clientX: number, clientY: number): void => {
+    const fromD = entityDisplay(link.from);
+    const toD = entityDisplay(link.to);
+    openMenuShell(clientX, clientY, (menu) => {
+      addTitle(menu, `${fromD} → ${toD}`);
+      addSection(menu, '타입');
+      for (const { type, label } of LINK_TYPES) {
+        addItem(menu, label, () => commit(setLinkType(getSource(), fromD, toD, type)), {
+          connected: link.type === type,
+        });
+      }
+      addSection(menu, '라벨');
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'gi-edit-menu-input';
+      input.value = link.label ?? '';
+      input.placeholder = '라벨 입력 후 Enter';
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          commit(setLinkLabel(getSource(), fromD, toD, input.value));
+        } else if (e.key === 'Escape') {
+          closeMenu();
+        }
+      });
+      menu.appendChild(input);
+      addSep(menu);
+      addItem(menu, '링크 제거', () => commit(removeLink(getSource(), fromD, toD)), { danger: true });
+    });
+  };
+
+  /** 클릭 지점의 링크(data-link) 식별 — pointer capture 영향 없는 elementFromPoint 사용. */
+  const linkAt = (clientX: number, clientY: number): Link | null => {
+    const el = document.elementFromPoint(clientX, clientY);
+    const dl = el && el.getAttribute ? el.getAttribute('data-link') : null;
+    if (!dl) return null;
+    const idx = dl.indexOf('>');
+    if (idx < 0) return null;
+    const f = dl.slice(0, idx);
+    const t = dl.slice(idx + 1);
+    return scene.links.find((l) => l.from === f && l.to === t) ?? null;
   };
 
   function isLinked(a: string, b: string): boolean {
@@ -270,8 +346,7 @@ export function attachEditing(params: EditingParams): EditingController {
     const next = connected
       ? removeLink(removeLink(src, a.display, other.display), other.display, a.display)
       : addLink(src, a.display, other.display);
-    if (next !== src) applyEdit(next);
-    else closeMenu();
+    commit(next);
   }
 
   // ── 좌표 변환 (preserveAspectRatio=xMidYMid meet 보정) ──
@@ -310,6 +385,18 @@ export function attachEditing(params: EditingParams): EditingController {
   const processHover = (): void => {
     rafId = 0;
     if (!pending || menuEl) return;
+    // 링크 위면 링크 편집 힌트.
+    if (linkAt(pending.x, pending.y)) {
+      hovered = null;
+      highlight.style.display = 'none';
+      tooltip.textContent = '✎ 링크 편집';
+      tooltip.style.display = '';
+      const rect = host.getBoundingClientRect();
+      tooltip.style.left = `${pending.x - rect.left + 12}px`;
+      tooltip.style.top = `${pending.y - rect.top + 12}px`;
+      pending = null;
+      return;
+    }
     const hit = hitAt(pending.x, pending.y);
     if (hit?.key !== hovered?.key) {
       hovered = hit;
@@ -357,6 +444,13 @@ export function attachEditing(params: EditingParams): EditingController {
     downActive = false;
     if (menuEl) return; // 메뉴 열림 중 — backdrop 가 처리
     if (Math.hypot(e.clientX - downX, e.clientY - downY) > CLICK_MOVE_THRESHOLD) return; // 팬
+    // 링크(화살표/선) 클릭 → 링크 메뉴
+    const link = linkAt(e.clientX, e.clientY);
+    if (link) {
+      onLeave();
+      openLinkMenu(link, e.clientX, e.clientY);
+      return;
+    }
     const hit = hitAt(e.clientX, e.clientY);
     if (!hit) return;
     const entity = scene.entities.find((en) => en.key === hit.key);

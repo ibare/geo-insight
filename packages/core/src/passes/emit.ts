@@ -73,10 +73,17 @@ export function emit(input: EmitInput): string {
     );
   }
 
-  // 5. links (타입별 path — wedge/stroke/wavy/arrowhead 모두 paths 로)
+  // 5. links (타입별 path — wedge/stroke/wavy/arrowhead 모두 paths 로) + 투명 히트 영역
   for (const l of links) {
+    const dl = `${l.from}>${l.to}`;
     for (const p of l.paths) {
-      if (p.d) out.push(linkPath(p));
+      if (p.d) out.push(linkPath(p, dl));
+    }
+    if (l.hit) {
+      out.push(
+        `<path class="gi-link-hit" data-link="${escapeAttr(dl)}" d="${l.hit}" fill="none" ` +
+          `stroke="#000" stroke-opacity="0" stroke-width="14" stroke-linecap="round" pointer-events="stroke"/>`,
+      );
     }
   }
 
@@ -106,8 +113,8 @@ export function emit(input: EmitInput): string {
   return out.join('\n');
 }
 
-function linkPath(p: { d: string; fill: string; stroke: string; width?: number; dash?: string }): string {
-  const attrs: Record<string, string> = { class: 'gi-link', fill: p.fill, stroke: p.stroke };
+function linkPath(p: { d: string; fill: string; stroke: string; width?: number; dash?: string }, dataLink: string): string {
+  const attrs: Record<string, string> = { class: 'gi-link', 'data-link': dataLink, fill: p.fill, stroke: p.stroke };
   if (p.stroke !== 'none') {
     attrs['stroke-width'] = String(p.width ?? 2);
     attrs['stroke-linecap'] = 'round';

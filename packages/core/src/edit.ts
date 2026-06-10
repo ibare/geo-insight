@@ -162,14 +162,86 @@ export function setCenter(source: string, lon: number): string {
   return lines.join('\n');
 }
 
-/** `link: from -> to` 제거. */
+/** link 계열 키워드(인라인). */
+const LINK_KEYWORD_RE = /^(\s*)(link|arrow|wind|current|route)\s*:\s*(.*)$/;
+const LINK_TYPE_TO_KEYWORD: Record<string, string> = {
+  arrow: 'link',
+  wind: 'wind',
+  current: 'current',
+  route: 'route',
+};
+
+interface InlineLink {
+  indent: string;
+  keyword: string;
+  from: string;
+  to: string;
+  label?: string;
+}
+
+/** 인라인 링크 라인 파싱 (`keyword: A -> B "label"`). */
+function parseInlineLink(line: string): InlineLink | null {
+  const m = LINK_KEYWORD_RE.exec(line);
+  if (!m) return null;
+  let rest = m[3]!.trim();
+  let label: string | undefined;
+  const qm = /\s*"([^"]*)"\s*$/.exec(rest);
+  if (qm) {
+    label = qm[1];
+    rest = rest.slice(0, qm.index).trim();
+  }
+  const am = /^(.+?)\s*->\s*(.+)$/.exec(rest);
+  if (!am) return null;
+  const out: InlineLink = { indent: m[1]!, keyword: m[2]!, from: am[1]!.trim(), to: am[2]!.trim() };
+  if (label !== undefined) out.label = label;
+  return out;
+}
+
+function buildInlineLink(l: InlineLink, keyword: string, label: string | undefined): string {
+  const tail = label ? ` "${label}"` : '';
+  return `${l.indent}${keyword}: ${l.from} -> ${l.to}${tail}`;
+}
+
+/** from→to 인라인 링크 라인을 찾아 변형. 못 찾으면(블록형 등) 원본 유지. */
+function patchInlineLink(
+  source: string,
+  from: string,
+  to: string,
+  fn: (l: InlineLink) => string,
+): string {
+  const nf = normalizeName(from);
+  const nt = normalizeName(to);
+  const lines = splitLines(source);
+  for (let i = 0; i < lines.length; i++) {
+    const parsed = parseInlineLink(lines[i]!);
+    if (parsed && normalizeName(parsed.from) === nf && normalizeName(parsed.to) === nt) {
+      lines[i] = fn(parsed);
+      return lines.join('\n');
+    }
+  }
+  return source;
+}
+
+/** 링크 타입 변경(키워드 교체, 라벨 보존). type: arrow|wind|current|route. */
+export function setLinkType(source: string, from: string, to: string, type: string): string {
+  const keyword = LINK_TYPE_TO_KEYWORD[type] ?? 'link';
+  return patchInlineLink(source, from, to, (l) => buildInlineLink(l, keyword, l.label));
+}
+
+/** 링크 라벨 설정/변경/제거(빈 문자열이면 제거, 키워드/타입 보존). */
+export function setLinkLabel(source: string, from: string, to: string, label: string): string {
+  const trimmed = label.trim();
+  return patchInlineLink(source, from, to, (l) => buildInlineLink(l, l.keyword, trimmed || undefined));
+}
+
+/** `link: from -> to` (또는 wind/current/route 인라인) 제거. */
 export function removeLink(source: string, from: string, to: string): string {
   const nf = normalizeName(from);
   const nt = normalizeName(to);
   const lines = splitLines(source).filter((l) => {
-    const m = /^\s*link\s*:\s*(.+?)\s*->\s*(.+?)\s*$/.exec(l);
-    if (!m) return true;
-    return !(normalizeName(m[1]!) === nf && normalizeName(m[2]!) === nt);
+    const parsed = parseInlineLink(l);
+    if (!parsed) return true;
+    return !(normalizeName(parsed.from) === nf && normalizeName(parsed.to) === nt);
   });
   return lines.join('\n');
 }

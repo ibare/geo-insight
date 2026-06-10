@@ -162,6 +162,22 @@
   margin: 4px 0;
   background: rgba(127, 140, 158, 0.25);
 }
+[data-geoinsight-root] .gi-edit-menu-input {
+  display: block;
+  width: 100%;
+  margin: 2px 0 4px;
+  padding: 5px 8px;
+  background: #0e1626;
+  color: #e7edf5;
+  border: 1px solid rgba(127, 140, 158, 0.4);
+  border-radius: 5px;
+  font-size: 13px;
+  font-family: system-ui, sans-serif;
+  outline: none;
+}
+[data-geoinsight-root] .gi-edit-menu-input:focus {
+  border-color: #3fb6ab;
+}
 
 /* 회전 기즈모(지구본 노브) */
 [data-geoinsight-root] .gi-edit-gizmo {

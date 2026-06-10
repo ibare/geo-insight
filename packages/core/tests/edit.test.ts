@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { addLink, addShowName, hasShowName, removeLink, removeShowName, setCenter } from '../src/edit.js';
+import {
+  addLink,
+  addShowName,
+  hasShowName,
+  removeLink,
+  removeShowName,
+  setCenter,
+  setLinkLabel,
+  setLinkType,
+} from '../src/edit.js';
 import { createLocator } from '../src/locate.js';
 import { compile } from '../src/compile.js';
 import { createResolver } from '@geoinsight/data';
@@ -49,6 +58,34 @@ describe('DSL 패치 — addLink/removeLink', () => {
     expect(addLink(src, '수단', '인도')).toBe(src); // 중복 방지
     src = removeLink(src, '수단', '인도');
     expect(src).not.toContain('link:');
+  });
+});
+
+describe('DSL 패치 — setLinkType/setLinkLabel', () => {
+  it('setLinkType: 키워드 교체(라벨 보존)', () => {
+    const out = setLinkType(`earth:\n  link: 수단 -> 인도 "무역"`, '수단', '인도', 'current');
+    expect(out).toContain('current: 수단 -> 인도 "무역"');
+  });
+  it('setLinkType arrow → link 키워드', () => {
+    const out = setLinkType(`earth:\n  wind: 수단 -> 인도`, '수단', '인도', 'arrow');
+    expect(out).toContain('link: 수단 -> 인도');
+    expect(out).not.toContain('wind:');
+  });
+  it('setLinkLabel: 추가/교체/제거(타입 보존)', () => {
+    let s = `earth:\n  wind: 수단 -> 인도`;
+    s = setLinkLabel(s, '수단', '인도', '계절풍');
+    expect(s).toContain('wind: 수단 -> 인도 "계절풍"');
+    s = setLinkLabel(s, '수단', '인도', '');
+    expect(s).toContain('wind: 수단 -> 인도');
+    expect(s).not.toContain('"');
+  });
+  it('일치하는 인라인 링크가 없으면 원본 유지', () => {
+    const src = `earth:\n  show: 수단`;
+    expect(setLinkType(src, '수단', '인도', 'wind')).toBe(src);
+  });
+  it('removeLink 는 타입 키워드(wind 등)도 제거', () => {
+    const out = removeLink(`earth:\n  wind: 수단 -> 인도 "x"`, '수단', '인도');
+    expect(out).not.toContain('wind:');
   });
 });
 

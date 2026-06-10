@@ -137,6 +137,75 @@ describe('editing — 지도 클릭으로 국가 토글', () => {
   });
 });
 
+describe('editing — 링크 클릭 메뉴', () => {
+  function stubLinkHit(dataLink: string | null): void {
+    Object.defineProperty(document, 'elementFromPoint', {
+      configurable: true,
+      value: () => (dataLink ? { getAttribute: (k: string) => (k === 'data-link' ? dataLink : null) } : null),
+    });
+  }
+
+  it('링크 클릭 시 타입/라벨/제거 메뉴가 뜬다', () => {
+    const el = document.createElement('div');
+    const instance = mount(el, 'earth:\n  show: 수단, 인도\n  link: 수단 -> 인도', { editable: true });
+    const svg = el.querySelector('svg')!;
+    stubLinkHit('729>356'); // 수단>인도
+    svg.dispatchEvent(new MouseEvent('pointerdown', { clientX: 100, clientY: 100, bubbles: true }));
+    svg.dispatchEvent(new MouseEvent('pointerup', { clientX: 100, clientY: 100, bubbles: true }));
+    const menu = el.querySelector('.gi-edit-menu');
+    expect(menu).toBeTruthy();
+    const items = [...el.querySelectorAll('.gi-edit-menu-item')].map((n) => n.textContent ?? '');
+    expect(items.some((t) => t.includes('해류'))).toBe(true);
+    expect(items.some((t) => t.includes('링크 제거'))).toBe(true);
+    expect(el.querySelector('.gi-edit-menu-input')).toBeTruthy();
+    stubLinkHit(null);
+    instance.destroy();
+  });
+
+  it('타입 항목 클릭 → 키워드 변경', () => {
+    const el = document.createElement('div');
+    let lastSource = '';
+    const instance = mount(el, 'earth:\n  show: 수단, 인도\n  link: 수단 -> 인도', {
+      editable: true,
+      onChange: (s) => {
+        lastSource = s;
+      },
+    });
+    const svg = el.querySelector('svg')!;
+    stubLinkHit('729>356');
+    svg.dispatchEvent(new MouseEvent('pointerdown', { clientX: 100, clientY: 100, bubbles: true }));
+    svg.dispatchEvent(new MouseEvent('pointerup', { clientX: 100, clientY: 100, bubbles: true }));
+    const current = [...el.querySelectorAll<HTMLButtonElement>('.gi-edit-menu-item')].find((n) =>
+      (n.textContent ?? '').includes('해류'),
+    )!;
+    current.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(lastSource).toContain('current: 수단 -> 인도');
+    stubLinkHit(null);
+    instance.destroy();
+  });
+
+  it('라벨 input Enter → 라벨 설정', () => {
+    const el = document.createElement('div');
+    let lastSource = '';
+    const instance = mount(el, 'earth:\n  show: 수단, 인도\n  link: 수단 -> 인도', {
+      editable: true,
+      onChange: (s) => {
+        lastSource = s;
+      },
+    });
+    const svg = el.querySelector('svg')!;
+    stubLinkHit('729>356');
+    svg.dispatchEvent(new MouseEvent('pointerdown', { clientX: 100, clientY: 100, bubbles: true }));
+    svg.dispatchEvent(new MouseEvent('pointerup', { clientX: 100, clientY: 100, bubbles: true }));
+    const input = el.querySelector<HTMLInputElement>('.gi-edit-menu-input')!;
+    input.value = '무역풍';
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(lastSource).toContain('"무역풍"');
+    stubLinkHit(null);
+    instance.destroy();
+  });
+});
+
 describe('editing — 회전 기즈모(center)', () => {
   it('기즈모가 렌더되고 현재 center 를 라벨로 보인다', () => {
     const el = document.createElement('div');
