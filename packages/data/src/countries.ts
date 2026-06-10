@@ -1,8 +1,8 @@
 /**
- * world-atlas(110m) topojson + world-countries 메타데이터를 조인해
+ * world-atlas(50m) topojson + world-countries 메타데이터를 조인해
  * ccn3 색인된 국가 feature 목록을 만든다.
  *
- * - 지오메트리: world-atlas countries-110m. topojson `id` 가 ccn3 숫자 문자열.
+ * - 지오메트리: world-atlas countries-50m(고해상도). topojson `id` 가 ccn3 숫자 문자열.
  * - 메타데이터: world-countries. ccn3 로 조인해 한글명/region/subregion/ISO 부여.
  * - 조인 실패(예: 분쟁지역 id "-99")는 지오메트리는 보존하되 메타는 properties.name
  *   기반 최소값으로 채운다 — 이름·코드로는 해석 불가하지만 그림에서 빠지지 않게.
@@ -19,7 +19,7 @@ import type {
 // 거대한 JSON 리터럴 타입으로 인한 tsc 성능 저하를 피하려 unknown 캐스트로 받는다.
 // (world-atlas JSON 은 json-modules.d.ts 에서 unknown 으로 선언)
 import worldCountriesRaw from 'world-countries';
-import topology110mRaw from 'world-atlas/countries-110m.json';
+import topology50mRaw from 'world-atlas/countries-50m.json';
 
 interface RawCountry {
   ccn3: string;
@@ -57,7 +57,7 @@ interface FeatureCollectionLike {
 }
 
 const worldCountries = worldCountriesRaw as unknown as RawCountry[];
-const topology110m = topology110mRaw as unknown as Topology;
+const topology50m = topology50mRaw as unknown as Topology;
 
 /** ccn3 → 메타데이터 색인. */
 const metaByCode = new Map<string, RawCountry>();
@@ -81,8 +81,8 @@ function toCountryGeometry(geom: {
 
 function buildFeatures(): GeoFeature[] {
   const fc = feature(
-    topology110m as never,
-    topology110m.objects.countries as never,
+    topology50m as never,
+    topology50m.objects.countries as never,
   ) as unknown as FeatureCollectionLike;
 
   const out: GeoFeature[] = [];
@@ -131,7 +131,7 @@ function features(): GeoFeature[] {
   return cached;
 }
 
-/** 기본 DataSource — 번들된 world-atlas 110m + world-countries. */
+/** 기본 DataSource — 번들된 world-atlas 50m + world-countries. */
 export function createDefaultDataSource(): DataSource {
   const byCode = new Map<string, GeoFeature>();
   for (const f of features()) {
