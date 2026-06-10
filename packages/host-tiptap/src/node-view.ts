@@ -1,4 +1,5 @@
 import type { NodeViewRenderer, NodeViewRendererProps } from '@tiptap/core';
+import type { GeoFeature } from '@geoinsight/core';
 import { mountGeoInsight, type GeoMountHandle } from './mount.js';
 
 /** data-height 미지정 시 NodeView 가 mount 에 넘기는 기본 높이(px). */
@@ -19,7 +20,11 @@ const MAX_HEIGHT = 1200;
  */
 export function createGeoInsightNodeView(): NodeViewRenderer {
   return ({ node, editor, getPos, extension }: NodeViewRendererProps) => {
-    const opts = (extension.options ?? {}) as { locale?: string; theme?: 'light' | 'dark' };
+    const opts = (extension.options ?? {}) as {
+      locale?: string;
+      theme?: 'light' | 'dark';
+      loadAdm1?: (ccn3: string) => Promise<GeoFeature[] | null>;
+    };
 
     const dom = document.createElement('pre');
     dom.setAttribute('data-geoinsight', 'true');
@@ -68,6 +73,7 @@ export function createGeoInsightNodeView(): NodeViewRenderer {
       initialHeight: initialAttrHeight ?? DEFAULT_HEIGHT,
       locale: opts.locale,
       theme: opts.theme,
+      loadAdm1: opts.loadAdm1,
       editable: editor.options.editable,
       onChange: writeBackSource,
     });

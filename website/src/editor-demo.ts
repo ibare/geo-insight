@@ -5,6 +5,7 @@ import {
   GeoInsightExtension,
   geoInsightNodeToMarkdown,
 } from '@geoinsight/host-tiptap';
+import { loadAdm1Browser } from '@geoinsight/data/browser';
 import { PRESETS } from './presets.js';
 
 /**
@@ -73,7 +74,7 @@ export function mountEditorDemo(host: HTMLElement): () => void {
 
   const editor = new Editor({
     element: surface,
-    extensions: [StarterKit, GeoInsightExtension.configure({ theme: 'dark' })],
+    extensions: [StarterKit, GeoInsightExtension.configure({ theme: 'dark', loadAdm1: loadAdm1Browser })],
     content: initialContent,
   });
 

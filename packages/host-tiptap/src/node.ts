@@ -1,4 +1,5 @@
 import { Node, mergeAttributes } from '@tiptap/core';
+import type { GeoFeature } from '@geoinsight/core';
 import { createGeoInsightNodeView } from './node-view.js';
 
 export const GEOINSIGHT_NODE_NAME = 'geoinsightBlock';
@@ -8,6 +9,11 @@ export interface GeoInsightExtensionOptions {
   locale?: string;
   /** 호스트 테마 힌트. */
   theme?: 'light' | 'dark';
+  /**
+   * ADM1(주/도) 지연 로더 — show/showOnly 의 국가(ccn3) 행정구역을 비동기로 가져온다.
+   * 호스트가 자산 서빙 방식(fetch/동적 import)을 주입. 미제공 시 ADM1 미지원.
+   */
+  loadAdm1?: (ccn3: string) => Promise<GeoFeature[] | null>;
 }
 
 /**
@@ -36,7 +42,7 @@ export const GeoInsightExtension = Node.create<GeoInsightExtensionOptions>({
   draggable: false,
 
   addOptions() {
-    return { locale: undefined, theme: undefined };
+    return { locale: undefined, theme: undefined, loadAdm1: undefined };
   },
 
   /** 캔버스 높이(px) attr — 호스트 영속 표면. 미조절 fence 는 attr 없이 유지. */

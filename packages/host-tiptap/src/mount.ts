@@ -9,7 +9,7 @@
 
 import { mount as runtimeMount, type GeoInstance } from '@geoinsight/runtime';
 import '@geoinsight/runtime/styles.css';
-import type { CompileOptions, Diagnostic, Theme } from '@geoinsight/core';
+import type { CompileOptions, Diagnostic, GeoFeature, Theme } from '@geoinsight/core';
 
 export interface GeoMountOptions {
   /** 최초 마운트 시점의 DSL 소스 (Tiptap 노드의 textContent). */
@@ -26,6 +26,8 @@ export interface GeoMountOptions {
   onChange?: (source: string) => void;
   /** 컴파일 진단 콜백. */
   onDiagnostics?: (d: Diagnostic[]) => void;
+  /** ADM1(주/도) 지연 로더 (호스트 주입). 미제공 시 ADM1 미지원. */
+  loadAdm1?: (ccn3: string) => Promise<GeoFeature[] | null>;
 }
 
 export interface GeoMountHandle {
@@ -66,6 +68,7 @@ export function mountGeoInsight(el: HTMLElement, opts: GeoMountOptions): GeoMoun
       ...compileOpts,
       interactive: true,
       editable,
+      ...(opts.loadAdm1 ? { loadAdm1: opts.loadAdm1 } : {}),
       // 편집으로 바뀐 소스를 기억하고 호스트로 통지. currentSource 를 먼저 갱신해
       // 직후 들어오는 setSource(PM round-trip)가 no-op 이 되게 한다.
       onChange: (next) => {
