@@ -59,6 +59,11 @@ export interface Theme {
   worldStroke: string;
   graticule: string;
   groupPalette: string[];
+  /**
+   * 선택된 개별 국가·지역(plain) 면색 시드. 안정 해시로 key 마다 색을 배정하고,
+   * 시드 수를 넘으면 평균 톤을 유지한 채 Hue 를 자동 회전해 확장한다(color.ts).
+   */
+  selectPalette: string[];
   focusAccent: string[];
   linkColor: string;
   label: { fill: string; halo: string; font: string; size: number };
@@ -68,15 +73,15 @@ export interface Theme {
    * ADM1/2 시각 구분.
    * - fill/stroke: 강조된(선택된) 행정구역.
    * - contextStroke: 소속 국가 인접구역 경계(일반 모드 배경선).
-   * - canvasFill/canvasStroke: showOnly(격리) 모드에서 선택되지 않은 행정구역 면/경계.
+   * (showOnly 미선택 행정구역 면은 worldFaint/worldStroke 를 재사용한다.)
    */
   subdivision: {
     fill: string;
     stroke: string;
     contextStroke: string;
-    canvasFill: string;
-    canvasStroke: string;
   };
+  /** 런타임 hover 하이라이트(편집 오버레이) — 커서 아래 지역의 면/아웃라인. */
+  hover: { fill: string; stroke: string; width: number };
   /** named 토큰(amber/coral/teal 등) → hex. */
   tokens: Record<string, string>;
 }

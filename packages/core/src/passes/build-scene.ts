@@ -10,6 +10,7 @@ import type { Ast, PropMap, Role } from '../ast.js';
 import { type Diagnostic, error } from '../diagnostics.js';
 import { boundsOf, centroidOf, largestPolygon } from '../geometry.js';
 import { resolveColor } from '../theme.js';
+import { pickSelectFill } from '../color.js';
 import type {
   ArrowHead,
   ArrowStyle,
@@ -204,15 +205,6 @@ export function buildScene(ast: Ast, opts: BuildOptions): BuiltScene {
     explicitStyleProps.set(key, decl.props);
   }
 
-  // 5. 링크 끝점 key 집합 (focus 추론용)
-  const linkEndpointKeys = new Set<string>();
-  for (const d of linkDecls) {
-    const f = keyByName.get(normalizeName(d.from));
-    const t = keyByName.get(normalizeName(d.to));
-    if (f) linkEndpointKeys.add(f);
-    if (t) linkEndpointKeys.add(t);
-  }
-
   // 5.5 showOnly — 대상 국가의 ADM1 을 "격리 캔버스" 로 자동 채움(런던 노선도 스타일).
   //     명시(show/focus)된 ADM1 은 강조색 유지, 나머지는 중립 canvas 면.
   const autoKeys = new Set<string>();
@@ -267,7 +259,6 @@ export function buildScene(ast: Ast, opts: BuildOptions): BuiltScene {
   // 6. 역할 추론 + z-order + 스타일 + 7. geometry
   const entities = [...entitiesByKey.values()];
   let groupIdx = 0;
-  let focusIdx = 0;
   entities.forEach((ent, i) => {
     // showOnly 자동 캔버스 — 맨 아래에 깔고 canvas 스타일 유지(역할/스타일 재계산 skip).
     if (autoKeys.has(ent.key)) {
@@ -279,19 +270,18 @@ export function buildScene(ast: Ast, opts: BuildOptions): BuiltScene {
     }
     const explicit = explicitStyleProps.has(ent.key);
     if (!explicit) {
-      // 추론: group(대륙/권역) → group, link 끝점 → focus, 그 외 plain
+      // 추론: group(대륙/권역) → group, 그 외 plain. link 끝점은 더 이상 강조색을 받지
+      // 않고(화살표만 그림) 선택 팔레트 색을 유지한다.
       if (inferredGroupKeys.has(ent.key)) ent.role = 'group';
-      else if (linkEndpointKeys.has(ent.key)) ent.role = 'focus';
       else ent.role = 'plain';
     }
-    // z: group(0) < plain(1) < focus(2). 동순위는 등장 인덱스로 안정화.
-    const base = ent.role === 'group' ? 0 : ent.role === 'focus' ? 2 : 1;
+    // z: group(0) < plain/focus(1). 동순위는 등장 인덱스로 안정화.
+    const base = ent.role === 'group' ? 0 : 1;
     ent.z = base * 1000 + i;
 
     // 스타일 기본값(역할별, ADM1 구분) → 명시 props 오버라이드
-    ent.style = defaultStyleFor(ent.role, theme, ent.role === 'group' ? groupIdx : focusIdx, ent.level);
+    ent.style = defaultStyleFor(ent.role, theme, groupIdx, ent.level, ent.key);
     if (ent.role === 'group') groupIdx++;
-    if (ent.role === 'focus') focusIdx++;
     const props = explicitStyleProps.get(ent.key);
     if (props) applyStyleProps(ent.style, props, theme);
 
@@ -423,14 +413,15 @@ function neutralStyle(theme: Theme): ResolvedStyle {
 }
 
 /**
- * showOnly 격리 모드의 미선택 행정구역 면(중립 패널 + 또렷한 경계).
- * label=false — 기본 UX(선택한 지역만 라벨)에 맞춰 미선택 ADM1 은 이름 미표시.
+ * showOnly 격리 모드의 미선택 행정구역 면.
+ * 색은 일반 미선택 나라와 동일한 중립색(worldFaint/worldStroke) — 별도 슬롯 없이 통일.
+ * label=false 만 격리 모드 특성 — 기본 UX(선택한 지역만 라벨)에 맞춰 이름 미표시.
  * 선택(show)된 ADM1 은 autoKeys 가 아니라 일반 엔티티 경로로 가므로 라벨이 붙는다.
  */
 function canvasStyle(theme: Theme): ResolvedStyle {
   return {
-    fill: theme.subdivision.canvasFill,
-    stroke: theme.subdivision.canvasStroke,
+    fill: theme.worldFaint,
+    stroke: theme.worldStroke,
     borders: true,
     label: false,
     opacity: 1,
@@ -451,31 +442,30 @@ function levelOf(features: { properties: { level?: 0 | 1 | 2 } }[]): 0 | 1 | 2 {
   return lvl;
 }
 
-function defaultStyleFor(role: Role, theme: Theme, idx: number, level: 0 | 1 | 2 = 0): ResolvedStyle {
-  // ADM1/2 가 plain 으로 추론되면 국가 슬레이트가 아니라 강조색으로 — 국가 배경과 구분.
-  if (role === 'plain' && level > 0) {
-    return { fill: theme.subdivision.fill, stroke: theme.subdivision.stroke, borders: true, label: true, opacity: 1 };
+function defaultStyleFor(
+  role: Role,
+  theme: Theme,
+  idx: number,
+  level: 0 | 1 | 2 = 0,
+  key = '',
+): ResolvedStyle {
+  // 선택된 개별 국가·지역(plain/focus)은 단색 고정이 아니라 selectPalette 에서 안정 해시로
+  // 색 배정. 면색은 key 기반(같은 지역=같은 색), 경계는 레벨별 유지(ADM1 은 또렷한 subdivision).
+  // link 끝점(focus)도 강조색 없이 자기 선택색을 유지한다 — 관계는 화살표로만 표현.
+  if (role !== 'group') {
+    const fallback = level > 0 ? theme.subdivision.fill : theme.tokens.slate!;
+    const fill = pickSelectFill(key, theme.selectPalette, fallback);
+    const stroke = level > 0 ? theme.subdivision.stroke : theme.worldStroke;
+    return { fill, stroke, borders: true, label: true, opacity: 1 };
   }
-  if (role === 'group') {
-    return {
-      fill: theme.groupPalette[idx % theme.groupPalette.length]!,
-      stroke: theme.worldStroke,
-      borders: true,
-      label: true,
-      opacity: 1,
-    };
-  }
-  if (role === 'focus') {
-    // 관계의 양 끝점은 같은 강조색(coral)으로 — 링크색(teal)과 구분. idx 무시.
-    return {
-      fill: theme.focusAccent[0]!,
-      stroke: theme.worldStroke,
-      borders: true,
-      label: true,
-      opacity: 1,
-    };
-  }
-  return { fill: theme.tokens.slate!, stroke: theme.worldStroke, borders: true, label: true, opacity: 1 };
+  // group(대륙/권역) — groupPalette 순환색.
+  return {
+    fill: theme.groupPalette[idx % theme.groupPalette.length]!,
+    stroke: theme.worldStroke,
+    borders: true,
+    label: true,
+    opacity: 1,
+  };
 }
 
 function applyStyleProps(style: ResolvedStyle, props: PropMap, theme: Theme): void {

@@ -3,6 +3,7 @@ import { createDefaultDataSource, createResolver } from '@geoinsight/data';
 import { loadAdm1FromDisk } from '@geoinsight/data/node';
 import { compile } from '../src/compile.js';
 import { DEFAULT_THEME } from '../src/theme.js';
+import { pickSelectFill } from '../src/color.js';
 
 function usDataSource() {
   const ds = createDefaultDataSource();
@@ -32,15 +33,15 @@ describe('ADM1 렌더 통합', () => {
     expect(svg).toContain('gi-entity');
   });
 
-  it('ADM1 시각 구분 — 강조 fill + level + 인접구역 배경 레이어', () => {
+  it('ADM1 시각 구분 — 선택 팔레트 fill + level + 인접구역 배경 레이어', () => {
     const ds = usDataSource();
     const r = createResolver({ dataSource: ds });
     const { scene, svg } = compile('earth:\n  show: California, Texas', { dataSource: ds, resolver: r });
     for (const e of scene.entities) {
       expect(e.level).toBe(1);
       expect(e.adm0).toBe('840');
-      // 명시 스타일 없는 ADM1 plain 은 국가 슬레이트가 아니라 subdivision 강조색.
-      expect(e.style.fill).toBe(DEFAULT_THEME.subdivision.fill);
+      // 명시 스타일 없는 ADM1 plain 은 국가 슬레이트가 아니라 selectPalette 안정 해시 색(key 기반).
+      expect(e.style.fill).toBe(pickSelectFill(e.key, DEFAULT_THEME.selectPalette, DEFAULT_THEME.subdivision.fill));
       expect(e.style.fill).not.toBe(DEFAULT_THEME.tokens.slate);
     }
     // 소속 국가(840)의 인접 주 경계 배경 레이어가 한 번 깔린다.
@@ -70,10 +71,10 @@ describe('ADM1 렌더 통합', () => {
     expect(svg).not.toContain('gi-ocean-label');
     // 미국 ADM1 이 자동으로 캔버스 엔티티가 된다(51개 안팎).
     expect(scene.entities.length).toBeGreaterThan(40);
-    // 명시한 California 는 강조색, 자동 채운 주는 canvas 색.
+    // 명시한 California 는 선택 팔레트 색(안정 해시), 자동 채운 주는 일반 미선택색(worldFaint).
     const cali = scene.entities.find((e) => e.display === 'California')!;
-    expect(cali.style.fill).toBe(DEFAULT_THEME.subdivision.fill);
-    const auto = scene.entities.find((e) => e.style.fill === DEFAULT_THEME.subdivision.canvasFill);
+    expect(cali.style.fill).toBe(pickSelectFill(cali.key, DEFAULT_THEME.selectPalette, DEFAULT_THEME.subdivision.fill));
+    const auto = scene.entities.find((e) => e.style.fill === DEFAULT_THEME.worldFaint && e.style.label === false);
     expect(auto).toBeTruthy();
     // 강조 엔티티가 캔버스보다 위(z 큼).
     expect(cali.z).toBeGreaterThan(auto!.z);

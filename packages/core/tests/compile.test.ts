@@ -12,15 +12,15 @@ describe('compile — 최소형 (africa-sudan-india)', () => {
     expect(hasError(diagnostics)).toBe(false);
   });
 
-  it('역할 추론: 아프리카=group, 수단/인도=focus', () => {
+  it('역할 추론: 아프리카=group, 수단/인도=plain (link 끝점도 강조색 없이 선택색 유지)', () => {
     const { scene } = compile(src);
     const byKeyRole = new Map(scene.entities.map((e) => [e.display, e.role]));
     expect(byKeyRole.get('아프리카')).toBe('group');
-    expect(byKeyRole.get('수단')).toBe('focus');
-    expect(byKeyRole.get('인도')).toBe('focus');
+    expect(byKeyRole.get('수단')).toBe('plain');
+    expect(byKeyRole.get('인도')).toBe('plain');
   });
 
-  it('z-order: group 이 focus 보다 아래에서 먼저 그려진다', () => {
+  it('z-order: group 이 plain 보다 아래에서 먼저 그려진다', () => {
     const { scene } = compile(src);
     const africa = scene.entities.find((e) => e.display === '아프리카')!;
     const sudan = scene.entities.find((e) => e.display === '수단')!;

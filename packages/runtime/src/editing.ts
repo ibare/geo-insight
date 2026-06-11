@@ -71,11 +71,13 @@ export function attachEditing(params: EditingParams): EditingController {
   let scene = result.scene;
 
   // ── 하이라이트 path (지도 좌표계 = viewBox, 줌/팬에 자동 정렬) ──
+  // 색은 테마 슬롯(theme.hover)에서 — 라이트/다크 테마에 맞춰 조정 가능.
+  const hoverStyle = scene.theme.hover;
   const highlight = document.createElementNS(SVG_NS, 'path');
   highlight.setAttribute('class', 'gi-edit-highlight');
-  highlight.setAttribute('fill', 'rgba(255,255,255,0.18)');
-  highlight.setAttribute('stroke', '#ffffff');
-  highlight.setAttribute('stroke-width', '1');
+  highlight.setAttribute('fill', hoverStyle.fill);
+  highlight.setAttribute('stroke', hoverStyle.stroke);
+  highlight.setAttribute('stroke-width', String(hoverStyle.width));
   highlight.style.pointerEvents = 'none';
   highlight.style.display = 'none';
   svg.appendChild(highlight);

@@ -6,7 +6,7 @@ exports[`golden — africa-sudan-india (최소형) > 구조 다이제스트 스�
     {
       "borders": true,
       "display": "아프리카",
-      "fill": "#d98a3a",
+      "fill": "#E6E1C9",
       "key": "group:africa",
       "role": "group",
       "z": 0,
@@ -14,18 +14,18 @@ exports[`golden — africa-sudan-india (최소형) > 구조 다이제스트 스�
     {
       "borders": true,
       "display": "수단",
-      "fill": "#e1604f",
+      "fill": "#cce6af",
       "key": "729",
-      "role": "focus",
-      "z": 2001,
+      "role": "plain",
+      "z": 1001,
     },
     {
       "borders": true,
       "display": "인도",
-      "fill": "#e1604f",
+      "fill": "#F3C3A6",
       "key": "356",
-      "role": "focus",
-      "z": 2002,
+      "role": "plain",
+      "z": 1002,
     },
   ],
   "labels": [
@@ -48,7 +48,7 @@ exports[`golden — africa-sudan-india (최소형) > 구조 다이제스트 스�
     ],
     "type": "equirectangular",
   },
-  "svgChecksum": "7fa34407",
+  "svgChecksum": "ffdcab63",
   "viewBox": [
     0,
     0,
@@ -64,7 +64,7 @@ exports[`golden — trade-winds (좌우 배치) > 구조 다이제스트 스냅�
     {
       "borders": true,
       "display": "아프리카",
-      "fill": "#d98a3a",
+      "fill": "#E6E1C9",
       "key": "group:africa",
       "role": "group",
       "z": 0,
@@ -72,7 +72,7 @@ exports[`golden — trade-winds (좌우 배치) > 구조 다이제스트 스냅�
     {
       "borders": true,
       "display": "동남아시아",
-      "fill": "#6a9a52",
+      "fill": "#899CA5",
       "key": "group:southeast-asia",
       "role": "group",
       "z": 1,
@@ -80,7 +80,7 @@ exports[`golden — trade-winds (좌우 배치) > 구조 다이제스트 스냅�
     {
       "borders": true,
       "display": "아메리카",
-      "fill": "#5a6abf",
+      "fill": "#C17D5B",
       "key": "group:americas",
       "role": "group",
       "z": 2,
@@ -99,7 +99,7 @@ exports[`golden — trade-winds (좌우 배치) > 구조 다이제스트 스냅�
     ],
     "type": "equirectangular",
   },
-  "svgChecksum": "eec0581c",
+  "svgChecksum": "eff8af6a",
   "viewBox": [
     0,
     0,
@@ -126,7 +126,7 @@ exports[`golden — 명시형 + geodesic > 구조 다이제스트 스냅샷 1`] 
       "fill": "#e1604f",
       "key": "410",
       "role": "focus",
-      "z": 2001,
+      "z": 1001,
     },
     {
       "borders": true,
@@ -134,7 +134,7 @@ exports[`golden — 명시형 + geodesic > 구조 다이제스트 스냅샷 1`] 
       "fill": "#e1604f",
       "key": "356",
       "role": "focus",
-      "z": 2002,
+      "z": 1002,
     },
   ],
   "labels": [
@@ -157,7 +157,7 @@ exports[`golden — 명시형 + geodesic > 구조 다이제스트 스냅샷 1`] 
     ],
     "type": "equirectangular",
   },
-  "svgChecksum": "329180cb",
+  "svgChecksum": "6a702dba",
   "viewBox": [
     0,
     0,
