@@ -78,6 +78,7 @@ export function attachEditing(params: EditingParams): EditingController {
   highlight.setAttribute('fill', hoverStyle.fill);
   highlight.setAttribute('stroke', hoverStyle.stroke);
   highlight.setAttribute('stroke-width', String(hoverStyle.width));
+  highlight.setAttribute('vector-effect', 'non-scaling-stroke'); // 줌 무관 일정 두께
   highlight.style.pointerEvents = 'none';
   highlight.style.display = 'none';
   svg.appendChild(highlight);

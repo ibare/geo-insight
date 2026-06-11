@@ -70,7 +70,13 @@ export function emitGeometry(input: EmitInput): string {
     const grat = camera.path(graticule());
     if (grat)
       out.push(
-        path(grat, { class: 'gi-graticule', fill: 'none', stroke: theme.graticule, 'stroke-width': '0.5' }),
+        path(grat, {
+          class: 'gi-graticule',
+          fill: 'none',
+          stroke: theme.graticule,
+          'stroke-width': '0.5',
+          'vector-effect': 'non-scaling-stroke',
+        }),
       );
 
     // 3. faint world (비선택 국가 배경) — 드래그 중엔 거친 110m 으로 값싸게.
@@ -86,6 +92,7 @@ export function emitGeometry(input: EmitInput): string {
           fill: theme.worldFaint,
           stroke: theme.worldStroke,
           'stroke-width': '0.4',
+          'vector-effect': 'non-scaling-stroke',
         }),
       );
   }
@@ -108,6 +115,7 @@ export function emitGeometry(input: EmitInput): string {
           fill: 'none',
           stroke: theme.subdivision.contextStroke,
           'stroke-width': '0.4',
+          'vector-effect': 'non-scaling-stroke',
         }),
       );
   }
@@ -124,6 +132,7 @@ export function emitGeometry(input: EmitInput): string {
         'fill-opacity': String(ent.style.opacity),
         stroke: ent.style.borders ? ent.style.stroke : 'none',
         'stroke-width': ent.style.borders ? '0.5' : '0',
+        'vector-effect': 'non-scaling-stroke',
       }),
     );
   }
