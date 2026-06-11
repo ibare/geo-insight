@@ -48,7 +48,7 @@ exports[`golden — africa-sudan-india (최소형) > 구조 다이제스트 스�
     ],
     "type": "equirectangular",
   },
-  "svgChecksum": "8d8aa4db",
+  "svgChecksum": "7fa34407",
   "viewBox": [
     0,
     0,
@@ -99,7 +99,7 @@ exports[`golden — trade-winds (좌우 배치) > 구조 다이제스트 스냅�
     ],
     "type": "equirectangular",
   },
-  "svgChecksum": "92ae52d0",
+  "svgChecksum": "eec0581c",
   "viewBox": [
     0,
     0,
@@ -157,7 +157,7 @@ exports[`golden — 명시형 + geodesic > 구조 다이제스트 스냅샷 1`] 
     ],
     "type": "equirectangular",
   },
-  "svgChecksum": "c29090df",
+  "svgChecksum": "329180cb",
   "viewBox": [
     0,
     0,

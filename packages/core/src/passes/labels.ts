@@ -39,11 +39,12 @@ export function layoutLabels(
   labels: LabelSpec[],
   entities: Map<string, Entity>,
   theme: Theme,
+  scale = 1,
 ): PlacedLabel[] {
-  const size = theme.label.size;
+  // 화면상 일정 크기를 위해 폰트/박스 크기를 줌 배율로 보정(annotationScale).
+  const size = theme.label.size * (scale > 0 ? scale : 1);
   const placed: PlacedLabel[] = [];
   const boxes: Box[] = [];
-  const pad = 4;
 
   // 우선순위 정렬 (focus 먼저). 동순위는 입력 순서 유지(결정적).
   const ordered = labels
@@ -56,18 +57,20 @@ export function layoutLabels(
     const w = Math.max(8, l.text.length * size * 0.62);
     const h = size * 1.25;
 
-    let x = clamp(p[0], pad + w / 2, camera.width - pad - w / 2);
-    let y = clamp(p[1], pad + h / 2, camera.height - pad - h / 2);
+    // 프레임 clamp 없음 — 라벨은 지역(centroid) 투영 위치에 그대로. 지역이 뷰포트를
+    // 벗어나면 라벨도 함께 벗어나 싱크가 유지된다(가장자리에 들러붙지 않음).
+    const x = p[0];
+    let y = p[1];
 
     if (l.collide) {
-      // 수직으로 한 칸씩 번갈아 밀며 최대 8회 시도.
+      // 수직으로 한 칸씩 번갈아 밀며 최대 8회 시도(프레임 clamp 없이).
       let attempt = 0;
       const step = h + 2;
       while (attempt < 8 && boxes.some((b) => overlaps(b, { x, y, w, h }))) {
         attempt++;
         const dir = attempt % 2 === 1 ? 1 : -1;
         const mag = Math.ceil(attempt / 2) * step;
-        y = clamp(p[1] + dir * mag, pad + h / 2, camera.height - pad - h / 2);
+        y = p[1] + dir * mag;
       }
     }
 
@@ -75,9 +78,4 @@ export function layoutLabels(
     placed.push({ text: l.text, x: round(x, 2), y: round(y, 2), entityKey: l.entityKey });
   }
   return placed;
-}
-
-function clamp(v: number, lo: number, hi: number): number {
-  if (lo > hi) return (lo + hi) / 2;
-  return Math.max(lo, Math.min(hi, v));
 }

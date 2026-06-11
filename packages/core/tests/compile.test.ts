@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compile } from '../src/compile.js';
+import { buildModel, compile, renderAnnotations, renderModel } from '../src/compile.js';
 import { hasError } from '../src/diagnostics.js';
 
 describe('compile — 최소형 (africa-sudan-india)', () => {
@@ -111,6 +111,39 @@ describe('compile — globe(orthographic) 중앙 정렬', () => {
     const { meta } = compile('earth:\n  projection: orthographic\n  show: 한국');
     // 한국(위도 ~37N)을 정면으로 → rotate[1] = -lat < 0 (0 이 아님).
     expect(meta.projectionParams.rotate[1]).not.toBe(0);
+  });
+});
+
+describe('compile — 주석 레이어 분리 + annotationScale', () => {
+  const src = 'earth:\n  show: 수단, 인도\n  link: 수단 -> 인도\n  label all { collide: true }';
+
+  it('gi-geometry / gi-annotations 두 그룹으로 분리된다', () => {
+    const { svg } = compile(src);
+    expect(svg).toContain('class="gi-geometry"');
+    expect(svg).toContain('class="gi-annotations"');
+    // 라벨/링크는 주석 그룹, 전세계 배경은 지오메트리 그룹.
+    const geo = svg.indexOf('gi-geometry');
+    const anno = svg.indexOf('gi-annotations');
+    expect(svg.indexOf('gi-world')).toBeGreaterThan(geo);
+    expect(svg.indexOf('gi-world')).toBeLessThan(anno);
+    expect(svg.indexOf('gi-labels')).toBeGreaterThan(anno);
+  });
+
+  it('renderAnnotations 는 주석만(전세계 배경 없음)', () => {
+    const model = buildModel(src);
+    const { annotations } = renderAnnotations(model);
+    expect(annotations).toContain('gi-labels');
+    expect(annotations).not.toContain('gi-world');
+    expect(annotations).not.toContain('gi-ocean"'); // sphere 배경 제외
+  });
+
+  it('annotationScale<1 이면 라벨 폰트가 작아진다(줌인 시 화면상 일정)', () => {
+    const model = buildModel(src);
+    const base = renderModel(model);
+    const zoomed = renderModel(model, { annotationScale: 0.5 });
+    const sizeOf = (svg: string): number =>
+      Number(/gi-labels[^>]*font-size="([\d.]+)"/.exec(svg)![1]);
+    expect(sizeOf(zoomed.svg)).toBeLessThan(sizeOf(base.svg));
   });
 });
 

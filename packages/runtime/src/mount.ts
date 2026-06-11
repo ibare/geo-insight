@@ -20,6 +20,7 @@ import {
   createDefaultDataSource,
   createLocator,
   createResolver,
+  renderAnnotations,
   renderContent,
   renderModel,
   type CompileResult,
@@ -76,6 +77,8 @@ export function mount(
   let editing: EditingController | null = null;
   let svg: SVGSVGElement | null = null;
   let contentGroup: SVGGElement | null = null;
+  /** gi-annotations(라벨/링크/대양) 그룹 — 줌 시 이것만 재렌더해 화면상 크기 일정. */
+  let annotationsGroup: SVGGElement | null = null;
   let result: CompileResult | null = null;
   let model: SceneModel | null = null;
   let base: FitBase | null = null;
@@ -98,6 +101,10 @@ export function mount(
       cancelAnimationFrame(rotateRaf);
       rotateRaf = 0;
     }
+    if (zoomRaf) {
+      cancelAnimationFrame(zoomRaf);
+      zoomRaf = 0;
+    }
     editing?.destroy();
     editing = null;
     controller?.destroy();
@@ -106,10 +113,18 @@ export function mount(
 
   // ── 회전 재투영(팬) ──────────────────────────────────────────────────────────
   let rotateRaf = 0;
+  let zoomRaf = 0;
   let pendingDx = 0;
   let pendingDy = 0;
 
   const isGlobe = (): boolean => result?.meta.projectionParams.type === 'orthographic';
+
+  /** 주석 크기 배율 = 현재 viewBox 폭 / 기본 폭(줌 배율). 줌인=값<1 → 화면상 일정. */
+  const annoScale = (): number => {
+    if (!controller || !result) return 1;
+    const baseW = result.meta.viewBox[2];
+    return baseW > 0 ? controller.getView()[2] / baseW : 1;
+  };
 
   /** 누적 드래그 델타(px)를 회전 상태에 반영. 화면 px → 경위도는 줌·투영 scale 보정. */
   const commitPending = (): void => {
@@ -131,14 +146,31 @@ export function mount(
   /** 현재 회전 상태로 gi-content 만 재투영해 교체. coarse=true 면 거친 배경(드래그 중). */
   const renderAtRotate = (coarse: boolean): void => {
     if (destroyed || !model || !base || !contentGroup) return;
+    const s = annoScale();
     const rendered = renderContent(model, {
       fixed: { rotate, scale: base.scale, translate: base.translate },
       ...(coarse ? { coarse: true } : {}),
+      ...(s !== 1 ? { annotationScale: s } : {}),
     });
     contentGroup.innerHTML = rendered.content;
+    annotationsGroup = contentGroup.querySelector('.gi-annotations');
     result!.scene = rendered.scene;
     result!.meta = rendered.meta;
     editing?.refresh(result!);
+  };
+
+  /** 줌 시 — 지오메트리는 viewBox 로 스케일되므로 그대로 두고 주석만 재렌더(크기 보정). */
+  const applyZoom = (): void => {
+    zoomRaf = 0;
+    if (destroyed || !model || !base || !annotationsGroup) return;
+    const rendered = renderAnnotations(model, {
+      fixed: { rotate, scale: base.scale, translate: base.translate },
+      annotationScale: annoScale(),
+    });
+    annotationsGroup.innerHTML = rendered.annotations;
+  };
+  const onZoom = (): void => {
+    if (!zoomRaf) zoomRaf = requestAnimationFrame(applyZoom);
   };
 
   const applyRotate = (): void => {
@@ -245,6 +277,7 @@ export function mount(
     svg = el.querySelector('svg');
     if (!svg) return;
     contentGroup = svg.querySelector('.gi-content');
+    annotationsGroup = svg.querySelector('.gi-annotations');
 
     // 컨테이너에 꽉 차게 — 픽셀 width/height 대신 viewBox 보존.
     svg.removeAttribute('width');
@@ -266,7 +299,7 @@ export function mount(
       interactive,
       outerBounds: outer,
       coverVertical: flat,
-      ...(interactive && model ? { onRotate, onRotateEnd } : {}),
+      ...(interactive && model ? { onRotate, onRotateEnd, onZoom } : {}),
     });
 
     if (opts.editable && currentSource != null) {
@@ -311,6 +344,7 @@ export function mount(
           fixed: { rotate, scale: base.scale, translate: base.translate },
         });
         contentGroup.innerHTML = rendered.content;
+        annotationsGroup = contentGroup.querySelector('.gi-annotations');
         if (result) {
           result.scene = rendered.scene;
           result.meta = rendered.meta;
@@ -324,6 +358,7 @@ export function mount(
       el.innerHTML = '';
       svg = null;
       contentGroup = null;
+      annotationsGroup = null;
     },
     getResult: () => result,
   };

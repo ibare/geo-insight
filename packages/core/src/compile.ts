@@ -17,7 +17,7 @@ import { cameraFromMeta, createCamera } from './passes/camera.js';
 import { layoutLabels } from './passes/labels.js';
 import { layoutOceans } from './passes/oceans.js';
 import { routeLinks } from './passes/links.js';
-import { emit, emitContent, type EmitInput } from './passes/emit.js';
+import { emit, emitContent, emitAnnotations, type EmitInput } from './passes/emit.js';
 import { createLocator, type Locator } from './locate.js';
 import type { CompileOptions, CompileResult, Entity, Label, Link, Scene } from './types.js';
 
@@ -94,6 +94,11 @@ export interface RenderOptions {
   fixed?: { rotate: [number, number]; scale: number; translate: [number, number] };
   /** 드래그 재투영 중 — faint world 를 거친 110m 으로(부드러운 회전, 놓으면 50m 스냅). */
   coarse?: boolean;
+  /**
+   * 주석(라벨/링크) 크기 배율 = 현재 viewBox 폭 / 기본 폭. 줌 배율을 상쇄해 화면상
+   * 크기를 일정하게 한다(줌인=값<1로 작게). 기본 1.
+   */
+  annotationScale?: number;
 }
 
 /** 모델 + 카메라 파라미터 → SVG. parse/resolve 없이 카메라 이후 패스만 재실행. */
@@ -123,11 +128,13 @@ function composeScene(
     );
   }
 
-  // Label layout
-  const placed = layoutLabels(camera, built.labels, entityMap, theme);
+  const annoScale = opts.annotationScale && opts.annotationScale > 0 ? opts.annotationScale : 1;
 
-  // Link routing
-  const routed = routeLinks(camera, built.links, entityMap);
+  // Label layout (annotationScale 로 화면상 일정 크기 + 프레임 clamp 없음)
+  const placed = layoutLabels(camera, built.labels, entityMap, theme, annoScale);
+
+  // Link routing (화살표 두께도 annotationScale 보정)
+  const routed = routeLinks(camera, built.links, entityMap, annoScale);
 
   // 5대양 라벨 (항상 표시) — unproject/역지오코딩으로 가장자리 끌어오기 보정
   const metaCam = cameraFromMeta(camera.meta);
@@ -185,6 +192,7 @@ function composeScene(
     theme,
     dataSource,
     ...(opts.coarse ? { coarseWorld: true } : {}),
+    ...(annoScale !== 1 ? { annotationScale: annoScale } : {}),
   };
   return { input, scene, meta: camera.meta, diagnostics };
 }
@@ -206,6 +214,18 @@ export function renderContent(
 ): { content: string; scene: Scene; meta: Scene['meta']; diagnostics: Diagnostic[] } {
   const { input, scene, meta, diagnostics } = composeScene(model, opts);
   return { content: emitContent(input), scene, meta, diagnostics };
+}
+
+/**
+ * gi-annotations 그룹 내부만(5대양/links/labels) — 줌 시 지오메트리는 그대로 두고
+ * 주석만 annotationScale 로 다시 그려 화면상 크기를 일정하게 유지(전세계 재투영 회피).
+ */
+export function renderAnnotations(
+  model: SceneModel,
+  opts: RenderOptions = {},
+): { annotations: string; scene: Scene; meta: Scene['meta'] } {
+  const { input, scene, meta } = composeScene(model, opts);
+  return { annotations: emitAnnotations(input), scene, meta };
 }
 
 /**

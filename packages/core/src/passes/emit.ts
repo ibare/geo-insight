@@ -1,10 +1,12 @@
 /**
  * Emit 패스 — 결정적 SVG 문자열.
  *
- * 레이어 순서 고정(구현지침 §9):
- *   sphere(ocean) → graticule → faint world → group/plain/focus fills(z 순서)
- *   → links → arrowheads → labels.
- * 좌표는 이미 precision 으로 반올림됨. 속성 순서·id 순서가 안정적이라 스냅샷·diff 가능.
+ * 콘텐츠는 두 그룹으로 나뉜다:
+ *   - gi-geometry: sphere → graticule → faint world → subdivisions → entity fills.
+ *     무겁고(전세계 path) 줌에는 안 변하므로 팬(회전)에만 재투영한다.
+ *   - gi-annotations: 5대양 라벨 → links → labels. 가볍고 화면상 일정 크기여야 하므로
+ *     팬·줌 모두 재렌더하며 annotationScale 로 크기를 보정한다(줌 배율 상쇄).
+ * 좌표는 이미 precision 으로 반올림됨. 속성/순서가 안정적이라 스냅샷·diff 가능.
  */
 
 import type { DataSource } from '@geoinsight/data';
@@ -26,12 +28,18 @@ export interface EmitInput {
   dataSource: DataSource;
   /** 드래그 재투영 중이면 faint world 배경을 거친(110m) 지오메트리로 — 값싼 재렌더. */
   coarseWorld?: boolean;
+  /**
+   * 주석(라벨/링크) 크기 배율 — 줌 배율(현재 viewBox 폭/기본 폭)을 그대로 넣는다.
+   * 폰트·헤일로·링크 stroke 를 이 값으로 곱하면 줌과 무관하게 화면상 크기가 일정해진다.
+   * 기본 1. 링크 path 의 두께/wedge 는 routeLinks 에서 이미 같은 배율로 적용됨.
+   */
+  annotationScale?: number;
 }
 
 export function emit(input: EmitInput): string {
   const [vx, vy, vw, vh] = input.camera.meta.viewBox;
-  // 콘텐츠를 gi-content 그룹으로 감싼다 — 런타임 회전/팬 재투영 시 이 그룹의
-  // innerHTML 만 교체하면 svg 리스너·편집 오버레이(하이라이트)를 보존할 수 있다.
+  // gi-content > (gi-geometry, gi-annotations). 런타임은 팬 때 gi-content 전체를,
+  // 줌 때 gi-annotations 만 교체해 지오메트리 재투영을 피하면서 주석 크기를 보정한다.
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vx} ${vy} ${vw} ${vh}" ` +
     `width="${vw}" height="${vh}" class="geoinsight" role="img">\n` +
@@ -39,15 +47,18 @@ export function emit(input: EmitInput): string {
   );
 }
 
-/**
- * 콘텐츠(svg 내부) 마크업만 생성 — 런타임이 회전/팬 재투영 후 gi-content 그룹에
- * 그대로 주입한다. 좌표계(viewBox)는 emit 의 svg 래퍼가 책임진다.
- */
+/** gi-content 내부 — gi-geometry + gi-annotations 두 그룹. */
 export function emitContent(input: EmitInput): string {
-  const { scene, camera, entities, links, labels, oceans, theme, dataSource } = input;
+  return (
+    `<g class="gi-geometry">\n${emitGeometry(input)}\n</g>\n` +
+    `<g class="gi-annotations">\n${emitAnnotations(input)}\n</g>`
+  );
+}
+
+/** 지오메트리 레이어(무거움, 줌 불변) — sphere/graticule/world/subdivisions/entities. */
+export function emitGeometry(input: EmitInput): string {
+  const { scene, camera, entities, theme, dataSource } = input;
   const out: string[] = [];
-  // showOnly(격리) — 바다/그래티큘/이웃국/대양라벨/인접구역 배경을 모두 생략하고
-  // 대상 국가의 행정구역만 빈 배경에 띄운다.
   const isolated = scene.showOnly != null;
 
   if (!isolated) {
@@ -77,18 +88,6 @@ export function emitContent(input: EmitInput): string {
           'stroke-width': '0.4',
         }),
       );
-  }
-
-  // 3.5 5대양 라벨 (엔티티/링크 아래, 격리 모드 제외)
-  if (!isolated && oceans.length > 0) {
-    out.push(
-      `<g class="gi-oceans" font-family="${escapeAttr(theme.label.font)}" font-size="${theme.oceanLabel.size}" ` +
-        `font-style="italic" text-anchor="middle" fill="${theme.oceanLabel.fill}" letter-spacing="${theme.oceanLabel.spacing}">`,
-    );
-    for (const o of oceans) {
-      out.push(`<text x="${o.x}" y="${o.y}" class="gi-ocean-label">${escapeText(o.text)}</text>`);
-    }
-    out.push('</g>');
   }
 
   // 3.6 행정구역 맥락 — ADM1 이 표시된 국가의 전체 주/도 경계를 옅게 깔아
@@ -129,7 +128,29 @@ export function emitContent(input: EmitInput): string {
     );
   }
 
-  // 5. links (타입별 path — wedge/stroke/wavy/arrowhead 모두 paths 로) + 투명 히트 영역
+  return out.join('\n');
+}
+
+/** 주석 레이어(가벼움, 화면상 일정 크기) — 5대양 라벨/links/labels. */
+export function emitAnnotations(input: EmitInput): string {
+  const { scene, links, labels, oceans, theme } = input;
+  const s = input.annotationScale && input.annotationScale > 0 ? input.annotationScale : 1;
+  const isolated = scene.showOnly != null;
+  const out: string[] = [];
+
+  // 5대양 라벨 (격리 모드 제외)
+  if (!isolated && oceans.length > 0) {
+    out.push(
+      `<g class="gi-oceans" font-family="${escapeAttr(theme.label.font)}" font-size="${n2(theme.oceanLabel.size * s)}" ` +
+        `font-style="italic" text-anchor="middle" fill="${theme.oceanLabel.fill}" letter-spacing="${n2(theme.oceanLabel.spacing * s)}">`,
+    );
+    for (const o of oceans) {
+      out.push(`<text x="${o.x}" y="${o.y}" class="gi-ocean-label">${escapeText(o.text)}</text>`);
+    }
+    out.push('</g>');
+  }
+
+  // links (타입별 path — wedge/stroke/wavy/arrowhead 모두 paths 로) + 투명 히트 영역
   for (const l of links) {
     const dl = `${l.from}>${l.to}`;
     for (const p of l.paths) {
@@ -138,19 +159,22 @@ export function emitContent(input: EmitInput): string {
     if (l.hit) {
       out.push(
         `<path class="gi-link-hit" data-link="${escapeAttr(dl)}" d="${l.hit}" fill="none" ` +
-          `stroke="#000" stroke-opacity="0" stroke-width="14" stroke-linecap="round" pointer-events="stroke"/>`,
+          `stroke="#000" stroke-opacity="0" stroke-width="${n2(14 * s)}" stroke-linecap="round" pointer-events="stroke"/>`,
       );
     }
   }
 
-  // 6. labels (엔티티 + 링크). halo + fill.
+  // labels (엔티티 + 링크). halo + fill. 폰트·헤일로는 annotationScale 로 화면상 일정.
   const linkLabels = links.filter((l) => l.label);
   if (labels.length > 0 || linkLabels.length > 0) {
-    out.push(`<g class="gi-labels" font-family="${escapeAttr(theme.label.font)}" font-size="${theme.label.size}" text-anchor="middle">`);
+    const halo = n2(3 * s);
+    out.push(
+      `<g class="gi-labels" font-family="${escapeAttr(theme.label.font)}" font-size="${n2(theme.label.size * s)}" text-anchor="middle">`,
+    );
     for (const lab of labels) {
       const common = `x="${lab.x}" y="${lab.y}" data-key="${escapeAttr(lab.entityKey)}"`;
       out.push(
-        `<text ${common} class="gi-label-halo" fill="none" stroke="${theme.label.halo}" stroke-width="3" stroke-linejoin="round">${escapeText(lab.text)}</text>`,
+        `<text ${common} class="gi-label-halo" fill="none" stroke="${theme.label.halo}" stroke-width="${halo}" stroke-linejoin="round">${escapeText(lab.text)}</text>`,
       );
       out.push(`<text ${common} class="gi-label" fill="${theme.label.fill}">${escapeText(lab.text)}</text>`);
     }
@@ -158,7 +182,7 @@ export function emitContent(input: EmitInput): string {
       if (!l.label) continue;
       const common = `x="${l.label.x}" y="${l.label.y}"`;
       out.push(
-        `<text ${common} class="gi-link-label-halo" fill="none" stroke="${theme.label.halo}" stroke-width="3" stroke-linejoin="round">${escapeText(l.label.text)}</text>`,
+        `<text ${common} class="gi-link-label-halo" fill="none" stroke="${theme.label.halo}" stroke-width="${halo}" stroke-linejoin="round">${escapeText(l.label.text)}</text>`,
       );
       out.push(`<text ${common} class="gi-link-label" fill="${theme.label.fill}">${escapeText(l.label.text)}</text>`);
     }
@@ -184,6 +208,11 @@ function path(d: string, attrs: Record<string, string>): string {
     .map(([k, v]) => `${k}="${escapeAttr(v)}"`)
     .join(' ');
   return `<path ${a} d="${d}"/>`;
+}
+
+/** 짧은 소수 반올림(주석 크기용). */
+function n2(x: number): number {
+  return Math.round(x * 100) / 100;
 }
 
 function escapeAttr(s: string): string {

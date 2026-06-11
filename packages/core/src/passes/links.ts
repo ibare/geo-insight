@@ -62,19 +62,20 @@ export function routeLinks(
   camera: Camera,
   links: LinkSpec[],
   entities: Map<string, Entity>,
+  scale = 1,
 ): RoutedLink[] {
   const out: RoutedLink[] = [];
   for (const link of links) {
     const from = entities.get(link.from);
     const to = entities.get(link.to);
     if (!from || !to) continue;
-    const routed = routeOne(camera, link, from, to);
+    const routed = routeOne(camera, link, from, to, scale > 0 ? scale : 1);
     if (routed) out.push(routed);
   }
   return out;
 }
 
-function routeOne(camera: Camera, link: LinkSpec, from: Entity, to: Entity): RoutedLink | null {
+function routeOne(camera: Camera, link: LinkSpec, from: Entity, to: Entity, scale: number): RoutedLink | null {
   const samples = link.geodesic
     ? geodesicSamples(camera, from.centroid, to.centroid)
     : bezierSamples(camera, from.centroid, to.centroid, link.curve);
@@ -103,14 +104,20 @@ function routeOne(camera: Camera, link: LinkSpec, from: Entity, to: Entity): Rou
   if (line.length < 2) line = samples.slice();
   if (line.length < 2) return null;
 
+  // 중심선(span)은 줌과 함께 자연스럽게 늘어나야 하므로 그대로. 두께(wedge/head/stroke)만
+  // annotationScale 로 보정해 화면상 일정하게 — 줌해도 화살표가 두꺼워지지 않는다.
+  const style = scaleStyle(link.style, scale);
+
   const tip = line[line.length - 1]!;
   const tangent = unit(sub(tip, line[Math.max(0, line.length - 2)]!));
-  const headLen = link.style.head === 'none' ? 0 : link.style.headLength;
+  const headLen = style.head === 'none' ? 0 : style.headLength;
   const wedgeEnd = addScaled(tip, tangent, -headLen);
   const body = headLen > 0 ? trimToLength(line, wedgeEnd) : line;
 
   const renderer = rendererRegistry.get(link.type) ?? builtinRenderer(link.type);
-  const paths = renderer({ body, tip, tangent, style: link.style });
+  const paths = renderer({ body, tip, tangent, style }).map((p) =>
+    p.width != null ? { ...p, width: p.width * scale } : p,
+  );
 
   // 히트 영역: 시작~tip 전체 중심선(arrowhead 포함 위해 tip 까지).
   const routed: RoutedLink = { from: link.from, to: link.to, paths, hit: strokePath([...body, tip]) };
@@ -119,6 +126,20 @@ function routeOne(camera: Camera, link: LinkSpec, from: Entity, to: Entity): Rou
     routed.label = { text: link.label, x: round(p[0], 2), y: round(p[1] - 8, 2) };
   }
   return routed;
+}
+
+/** 화살표 치수(폭/헤드/점선)를 annotationScale 로 보정 — 색/모양은 그대로. */
+function scaleStyle(style: ArrowStyle, scale: number): ArrowStyle {
+  if (scale === 1) return style;
+  const out: ArrowStyle = {
+    ...style,
+    widthStart: style.widthStart * scale,
+    widthEnd: style.widthEnd * scale,
+    headLength: style.headLength * scale,
+    headWidth: style.headWidth * scale,
+  };
+  if (style.dash) out.dash = style.dash.map((d) => d * scale);
+  return out;
 }
 
 // ── 타입별 빌트인 렌더러 ─────────────────────────────────────────────────────

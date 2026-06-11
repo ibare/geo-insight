@@ -44,6 +44,11 @@ export interface ZoomPanOptions {
    * (가로 탐색은 좌우 wrap 으로). globe 는 false(전체 디스크가 보이게).
    */
   coverVertical?: boolean;
+  /**
+   * 줌 배율(viewBox 폭)이 바뀔 때 호출 — 주석(라벨/링크) 크기를 줌과 무관하게
+   * 일정 유지하도록 재렌더하는 훅. 수직/수평 팬(폭 불변)에는 호출되지 않는다.
+   */
+  onZoom?: (view: ViewBox) => void;
 }
 
 export function attachZoomPan(
@@ -73,13 +78,15 @@ export function attachZoomPan(
 
   const setView = (v: ViewBox) => {
     // 너비 클램프 + 종횡비 고정(base 비율 유지)
-    let w = clamp(v[2], minW, maxW);
-    let h = w * aspect;
+    const w = clamp(v[2], minW, maxW);
+    const h = w * aspect;
     // 팬 가능 영역: 전세계 범위 + 한 화면만큼의 여유.
     const x = clamp(v[0], outer[0] - w, outer[0] + outer[2]);
     const y = clamp(v[1], outer[1] - h, outer[1] + outer[3]);
+    const zoomChanged = Math.abs(w - view[2]) > 1e-6;
     view = [x, y, w, h];
     applyView();
+    if (zoomChanged) opts.onZoom?.(view);
   };
 
   applyView();
