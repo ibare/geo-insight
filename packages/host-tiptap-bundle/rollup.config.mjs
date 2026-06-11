@@ -17,6 +17,7 @@ import { nodeResolve } from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import json from '@rollup/plugin-json';
 import replace from '@rollup/plugin-replace';
+import dynamicImportVars from '@rollup/plugin-dynamic-import-vars';
 import esbuild from 'rollup-plugin-esbuild';
 import dts from 'rollup-plugin-dts';
 import postcss from 'rollup-plugin-postcss';
@@ -38,6 +39,10 @@ const external = [/^@tiptap\/core/, /^@tiptap\/pm(\/.*)?$/];
  *  - @geoinsight/host-tiptap: tiptap glue.
  */
 function manualChunks(id) {
+  // 국가별 ADM1 지오메트리 JSON 은 묶지 말 것 — 동적 import 로 분해된 lazy 청크를
+  // 유지해 요청한 국가만 로드되게 한다(전부 한 청크로 합치면 5.5MB 가 항상 로드됨).
+  // (게이저티어 adm1-index.json 은 assets/adm1/ 가 아니라 assets/ 직속이라 data 청크에 남음.)
+  if (/\/packages\/data\/assets\/adm1\//.test(id)) return undefined;
   if (/\/packages\/data\//.test(id)) return 'geoinsight-data';
   if (/\/packages\/core\//.test(id)) return 'geoinsight-core';
   if (/\/packages\/runtime\//.test(id)) return 'runtime';
@@ -61,7 +66,9 @@ const jsBundle = {
     inlineDynamicImports: false,
     sourcemap: true,
     generatedCode: 'es2015',
-    manualChunks,
+    // manualChunks 미사용 — 234개 ADM1 동적 import 가 생긴 뒤로는 강제 그룹핑이
+    // 동적 경계와 충돌해 world-atlas/world-countries 를 여러 청크에 4× 복제했다.
+    // rollup 기본 알고리즘이 공유 모듈을 1개 청크로 dedup 하도록 맡긴다.
   },
   plugins: [
     replace({
@@ -91,6 +98,9 @@ const jsBundle = {
       minimize: true,
     }),
     esbuild({ target: 'es2022', sourceMap: true, tsconfig: '../../tsconfig.base.json' }),
+    // esbuild(TS→JS) 뒤에 실행 — loadAdm1Browser 의 import(`../assets/adm1/${ccn3}.json`)
+    // 를 국가별 lazy 청크로 분해(Vite 가 기본 내장하는 것을 rollup 번들에서도 동일하게).
+    dynamicImportVars({ warnOnError: true }),
     VISUALIZE &&
       visualizer({ filename: 'stats.html', template: 'treemap', gzipSize: true, brotliSize: true }),
   ].filter(Boolean),
