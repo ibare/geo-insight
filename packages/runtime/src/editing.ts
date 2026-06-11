@@ -38,8 +38,12 @@ export interface EditingParams {
   host: HTMLElement;
   getView: () => ViewBox;
   result: CompileResult;
-  /** 편집 적용 — 새 DSL 소스로 재렌더 + onChange 통지(호출자 책임). */
-  applyEdit: (nextSource: string) => void;
+  /**
+   * 편집 적용 — 새 DSL 소스로 재렌더 + onChange 통지(호출자 책임).
+   * reframe=true 면 현재 뷰포트를 보존하지 않고 새로 fit(showOnly 진입/나가기처럼
+   * 프레임이 바뀌어야 하는 전환). 기본은 보존(클릭 선택 시 화면 고정).
+   */
+  applyEdit: (nextSource: string, opts?: { reframe?: boolean }) => void;
   /** 현재 DSL 소스 getter. */
   getSource: () => string;
   /** 공유 locator(없으면 생성). */
@@ -172,7 +176,7 @@ export function attachEditing(params: EditingParams): EditingController {
       e.stopPropagation();
       const src = getSource();
       const next = removeShowOnly(src);
-      if (next !== src) applyEdit(next);
+      if (next !== src) applyEdit(next, { reframe: true });
     });
     host.appendChild(exitBtn);
   }
@@ -250,8 +254,8 @@ export function attachEditing(params: EditingParams): EditingController {
   };
 
   /** 편집 적용 헬퍼 — 바뀌면 applyEdit, 아니면 메뉴만 닫기. */
-  const commit = (next: string): void => {
-    if (next !== getSource()) applyEdit(next);
+  const commit = (next: string, opts?: { reframe?: boolean }): void => {
+    if (next !== getSource()) applyEdit(next, opts);
     else closeMenu();
   };
 
@@ -286,7 +290,7 @@ export function attachEditing(params: EditingParams): EditingController {
       addSep(menu);
       // 일반 모드에서 국가(level 0) → 이 국가만 행정구역으로 보기(showOnly 진입).
       if (!scene.showOnly && entity.level === 0) {
-        addItem(menu, '행정구역 보기', () => commit(setShowOnly(getSource(), entity.display)));
+        addItem(menu, '행정구역 보기', () => commit(setShowOnly(getSource(), entity.display), { reframe: true }));
       }
       addItem(menu, scene.showOnly ? '선택 해제' : '이 국가 제거', () => commit(removeShowName(getSource(), entity.display)), {
         danger: true,

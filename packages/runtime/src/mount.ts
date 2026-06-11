@@ -336,11 +336,12 @@ export function mount(
         result,
         getSource: () => currentSource ?? '',
         locator,
-        applyEdit: (next) => {
+        applyEdit: (next, editOpts) => {
           currentSource = next;
           // 클릭 편집은 현재 뷰포트(카메라+줌/팬)를 캡처해 보존 — 선택 시 화면이 점프하지 않게.
+          // reframe(showOnly 진입/나가기)이면 보존을 건너뛰고 새 프레임에 fit 한다.
           const preserve: Preserve | undefined =
-            controller && base
+            !editOpts?.reframe && controller && base
               ? {
                   view: controller.getView(),
                   rotate: [rotate[0], rotate[1]],

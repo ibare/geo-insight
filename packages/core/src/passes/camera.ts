@@ -61,7 +61,9 @@ const PRESET_CENTERS: Record<string, number> = {
 
 export function createCamera(entities: Entity[], config: SceneConfig, opts: CameraOptions): Camera {
   const { width, height, precision } = opts;
-  const padding = opts.padding ?? Math.round(Math.min(width, height) * 0.06);
+  // showOnly(행정구역 보기)는 한 국가만 격리 표시 — 여백을 더 줘 뷰포트의 ~80% 에 fit.
+  const padFrac = config.showOnly ? 0.1 : 0.06;
+  const padding = opts.padding ?? Math.round(Math.min(width, height) * padFrac);
   const resolver = opts.resolver ?? createResolver();
 
   const { projection, fallbackFrom } = createProjection(config.projectionType);
