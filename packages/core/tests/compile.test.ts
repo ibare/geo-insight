@@ -112,6 +112,15 @@ describe('compile — globe(orthographic) 중앙 정렬', () => {
     // 한국(위도 ~37N)을 정면으로 → rotate[1] = -lat < 0 (0 이 아님).
     expect(meta.projectionParams.rotate[1]).not.toBe(0);
   });
+
+  it('globe 뒷면 지역의 라벨은 컬링된다(앞면에 겹쳐 뜨지 않음)', () => {
+    const labelCount = (svg: string): number => (svg.match(/class="gi-label"/g) ?? []).length;
+    // center 0(대서양/아프리카 정면) → 한국(127E)은 뒷면.
+    const globe = compile('earth:\n  projection: orthographic\n  center: 0\n  show: 한국').svg;
+    const flat = compile('earth:\n  center: 0\n  show: 한국').svg;
+    expect(labelCount(flat)).toBeGreaterThanOrEqual(1); // flat 은 항상 표시
+    expect(labelCount(globe)).toBe(0); // globe 뒷면 → 컬링
+  });
 });
 
 describe('compile — 주석 레이어 분리 + annotationScale', () => {

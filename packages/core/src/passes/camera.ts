@@ -10,7 +10,7 @@
 
 import type { GeoFeature, Resolver } from '@geoinsight/data';
 import { createResolver, normalizeName } from '@geoinsight/data';
-import { geoCentroid, geoPath } from 'd3-geo';
+import { geoCentroid, geoDistance, geoPath } from 'd3-geo';
 import { centroidOf, largestPolygon } from '../geometry.js';
 import { createPathString, createProjection, type Projection, round } from '../projection.js';
 import type { Entity, ProjectionType, SceneMeta } from '../types.js';
@@ -20,6 +20,12 @@ export interface Camera {
   project(lonlat: [number, number]): [number, number] | null;
   /** GeoJSON 객체 → 화면 path d 문자열(반올림). */
   path(object: unknown): string;
+  /**
+   * 이 좌표가 보이는 면에 있는지 — orthographic(globe)에서 뒷면(중심 90° 밖)은 false.
+   * raw projection 은 뒷면 점도 디스크에 투영하므로(겹침) 라벨/링크가 앞면에 잘못
+   * 그려진다. 이 판정으로 컬링한다. 비클립 투영(flat 등)은 항상 true.
+   */
+  visible(lonlat: [number, number]): boolean;
   width: number;
   height: number;
   meta: SceneMeta;
@@ -115,6 +121,10 @@ export function createCamera(entities: Entity[], config: SceneConfig, opts: Came
     },
   };
 
+  // orthographic 뒷면 판정용 — 디스크 정중앙의 지리 좌표 [경도, 위도].
+  const isOrtho = config.projectionType === 'orthographic';
+  const visCenter: [number, number] = [-rotate[0], -rotate[1]];
+
   const cam: Camera = {
     width,
     height,
@@ -124,6 +134,10 @@ export function createCamera(entities: Entity[], config: SceneConfig, opts: Came
       const p = (projection as (xy: [number, number]) => [number, number] | null)(ll);
       if (!p || !Number.isFinite(p[0]) || !Number.isFinite(p[1])) return null;
       return [round(p[0], precision), round(p[1], precision)];
+    },
+    visible(ll) {
+      if (!isOrtho) return true;
+      return geoDistance(ll, visCenter) <= Math.PI / 2 - 0.02;
     },
   };
   if (fallbackFrom) cam.fallbackProjection = fallbackFrom;

@@ -52,6 +52,8 @@ export function layoutLabels(
     .sort((a, b) => a.prio - b.prio || a.i - b.i);
 
   for (const { l } of ordered) {
+    // globe 뒷면 좌표는 디스크 앞면에 겹쳐 투영되므로 컬링(라벨이 반대편에 안 뜨게).
+    if (!camera.visible(l.at)) continue;
     const p = camera.project(l.at);
     if (!p) continue;
     const w = Math.max(8, l.text.length * size * 0.62);

@@ -76,6 +76,9 @@ export function routeLinks(
 }
 
 function routeOne(camera: Camera, link: LinkSpec, from: Entity, to: Entity, scale: number): RoutedLink | null {
+  // globe 뒷면 끝점은 디스크 앞면에 겹쳐 투영돼 링크가 엉뚱한 면을 가로지른다 — 컬링.
+  if (!camera.visible(from.centroid) || !camera.visible(to.centroid)) return null;
+
   const samples = link.geodesic
     ? geodesicSamples(camera, from.centroid, to.centroid)
     : bezierSamples(camera, from.centroid, to.centroid, link.curve);
