@@ -247,6 +247,14 @@ export function mount(
         for (const [c, fs] of loaded) {
           adm1InFlight.delete(c);
           if (fs && fs.length > 0) dataSource.loadAdm1(c, fs);
+          else {
+            // 조용한 폴백 방지 — ADM1 로더가 빈 결과를 주면(번들 lazy 청크 미서빙/경로
+            // 오류 등) 50m 국가 외곽으로 폴백된다. 호스트(methii 등)가 원인 파악하도록 경고.
+            console.warn(
+              `[geoinsight] ADM1 로드 실패(ccn3=${c}) — 행정구역 대신 국가 외곽(50m)으로 폴백합니다. ` +
+                `번들의 dist/chunks/ 가 서빙되는지(동적 import 경로) 확인하세요.`,
+            );
+          }
         }
         if (destroyed) return;
       }
