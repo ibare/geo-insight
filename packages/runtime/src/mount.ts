@@ -67,6 +67,16 @@ interface FitBase {
   scale: number;
   translate: [number, number];
 }
+/**
+ * 재렌더 시 현재 뷰포트(카메라 + 줌/팬)를 보존하기 위한 스냅샷.
+ * 클릭 편집(show 추가/제거 등)에서 fitExtent 재프레이밍을 막아 화면이 점프하지 않게 한다.
+ */
+interface Preserve {
+  view: ViewBox;
+  rotate: Rotate;
+  scale: number;
+  translate: [number, number];
+}
 
 export function mount(
   el: HTMLElement,
@@ -229,7 +239,7 @@ export function mount(
   };
 
   /** 필요한 ADM1 국가를 먼저 비동기 로드한 뒤 render. 로더 없으면 즉시 동기 렌더. */
-  const ensureAndRender = async (input: string | CompileResult): Promise<void> => {
+  const ensureAndRender = async (input: string | CompileResult, preserve?: Preserve): Promise<void> => {
     if (typeof input === 'string' && opts.loadAdm1) {
       const need = adm1CountriesFor(input, resolver).filter(
         (c) => dataSource.adm1(c).length === 0 && !adm1InFlight.has(c),
@@ -259,15 +269,20 @@ export function mount(
         if (destroyed) return;
       }
     }
-    render(input);
+    render(input, preserve);
   };
 
-  const render = (input: string | CompileResult): void => {
+  const render = (input: string | CompileResult, preserve?: Preserve): void => {
     if (destroyed) return;
     // 문자열이면 모델을 빌드해 캐시(회전 재투영용). 미리 컴파일된 결과는 정적 렌더.
     if (typeof input === 'string') {
       model = buildModel(input, compileOpts);
-      result = renderModel(model);
+      // 뷰포트 보존(클릭 편집) — fixed 로 fitExtent 를 건너뛰어 카메라가 점프하지 않게 한다.
+      result = preserve
+        ? renderModel(model, {
+            fixed: { rotate: preserve.rotate, scale: preserve.scale, translate: preserve.translate },
+          })
+        : renderModel(model);
     } else {
       model = null;
       result = input;
@@ -309,6 +324,8 @@ export function mount(
       coverVertical: flat,
       ...(interactive && model ? { onRotate, onRotateEnd, onZoom } : {}),
     });
+    // 클릭 편집이면 직전 줌/팬 상태를 그대로 복원(카메라는 fixed 로 이미 고정됨).
+    if (preserve) controller.setView(preserve.view);
 
     if (opts.editable && currentSource != null) {
       if (!locator) locator = createLocator();
@@ -321,7 +338,17 @@ export function mount(
         locator,
         applyEdit: (next) => {
           currentSource = next;
-          void ensureAndRender(next);
+          // 클릭 편집은 현재 뷰포트(카메라+줌/팬)를 캡처해 보존 — 선택 시 화면이 점프하지 않게.
+          const preserve: Preserve | undefined =
+            controller && base
+              ? {
+                  view: controller.getView(),
+                  rotate: [rotate[0], rotate[1]],
+                  scale: base.scale,
+                  translate: [base.translate[0], base.translate[1]],
+                }
+              : undefined;
+          void ensureAndRender(next, preserve);
           opts.onChange?.(next);
         },
       });
