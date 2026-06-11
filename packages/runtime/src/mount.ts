@@ -79,6 +79,8 @@ export function mount(
   let result: CompileResult | null = null;
   let model: SceneModel | null = null;
   let base: FitBase | null = null;
+  /** 렌더된 지도(전세계 sphere)의 viewBox 좌표 bbox — flat 수직 팬 클램프 기준. */
+  let mapBounds: ViewBox | null = null;
   /** 휘발 회전 상태 [경도, 위도] — DSL 에 기록하지 않음. 전체 재렌더 시 base 로 리셋. */
   let rotate: Rotate = [0, 0];
   let currentSource: string | null = typeof src === 'string' ? src : null;
@@ -145,10 +147,43 @@ export function mount(
     renderAtRotate(true); // 드래그 중 — 거친 110m 배경으로 부드럽게.
   };
 
+  /**
+   * flat 수직 팬 — equirectangular 는 위도 wrap 이 없으므로 회전이 아니라 viewBox 를
+   * 세로로 움직인다. 지도 세로가 뷰포트에 다 들어오면(최대 줌아웃) 고정(중앙), 줌인
+   * 돼 안 보이는 영역이 생기면 그 범위 안에서만 패닝.
+   */
+  const panVertical = (dyPx: number): void => {
+    if (!svg || !controller || !mapBounds) return;
+    const rect = svg.getBoundingClientRect();
+    if (rect.height === 0) return;
+    const view = controller.getView();
+    const scaleY = view[3] / rect.height;
+    const mapTop = mapBounds[1];
+    const mapH = mapBounds[3];
+    const h = view[3];
+    let y: number;
+    if (h >= mapH) {
+      y = mapTop - (h - mapH) / 2; // 다 보임 → 수직 고정(중앙)
+    } else {
+      y = clamp(view[1] - dyPx * scaleY, mapTop, mapTop + mapH - h); // 지도 범위 내
+    }
+    controller.setView([view[0], y, view[2], view[3]]);
+  };
+
   const onRotate = (dx: number, dy: number): void => {
-    pendingDx += dx;
-    pendingDy += dy;
-    if (!rotateRaf) rotateRaf = requestAnimationFrame(applyRotate);
+    // globe — 경도+위도 모두 구체 회전(재투영).
+    if (isGlobe()) {
+      pendingDx += dx;
+      pendingDy += dy;
+      if (!rotateRaf) rotateRaf = requestAnimationFrame(applyRotate);
+      return;
+    }
+    // flat — 좌우=경도 회전(무한 wrap, 재투영), 상하=viewBox 수직 팬(줌인 시에만).
+    if (dx !== 0) {
+      pendingDx += dx;
+      if (!rotateRaf) rotateRaf = requestAnimationFrame(applyRotate);
+    }
+    if (dy !== 0) panVertical(dy);
   };
 
   /** 드래그 종료 — 남은 델타 반영 후 고품질(50m)로 1회 스냅 재렌더. */
@@ -220,6 +255,7 @@ export function mount(
 
     const vb = result.meta.viewBox as ViewBox;
     const outer = worldBounds(result) ?? vb;
+    mapBounds = outer;
     const interactive = opts.interactive ?? true;
     // 모델이 있을 때만 드래그=회전(재투영). 미리 컴파일된 정적 결과는 기존 viewBox 팬.
     controller = attachZoomPan(svg, vb, {

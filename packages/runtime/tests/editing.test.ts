@@ -259,6 +259,32 @@ describe('editing — 회전 패닝(재투영)', () => {
     instance.destroy();
   });
 
+  it('flat — 최대 줌아웃에선 수직 고정, 줌인 후엔 viewBox 수직 팬', () => {
+    const el = document.createElement('div');
+    const instance = mount(el, 'earth:\n  fit: world\n  show: 아프리카');
+    const svg = el.querySelector('svg')!;
+    stubRect(svg, 960, 576);
+    const yOf = (): number => Number(svg.getAttribute('viewBox')!.split(' ')[1]);
+
+    // 최대 줌아웃 — 지도 세로가 다 보이므로 수직 드래그해도 viewBox y 고정.
+    const y0 = yOf();
+    svg.dispatchEvent(new MouseEvent('pointerdown', { clientX: 100, clientY: 100, bubbles: true }));
+    svg.dispatchEvent(new MouseEvent('pointermove', { clientX: 100, clientY: 260, bubbles: true }));
+    svg.dispatchEvent(new MouseEvent('pointerup', { clientX: 100, clientY: 260, bubbles: true }));
+    expect(yOf()).toBeCloseTo(y0, 1);
+
+    // 줌인(휠) → 안 보이는 상하 영역 발생 → 수직 드래그가 viewBox y 를 움직인다.
+    for (let i = 0; i < 4; i++) {
+      svg.dispatchEvent(new WheelEvent('wheel', { deltaY: -120, clientX: 480, clientY: 288, bubbles: true }));
+    }
+    const y1 = yOf();
+    svg.dispatchEvent(new MouseEvent('pointerdown', { clientX: 100, clientY: 300, bubbles: true }));
+    svg.dispatchEvent(new MouseEvent('pointermove', { clientX: 100, clientY: 140, bubbles: true }));
+    svg.dispatchEvent(new MouseEvent('pointerup', { clientX: 100, clientY: 140, bubbles: true }));
+    expect(yOf()).not.toBeCloseTo(y1, 1);
+    instance.destroy();
+  });
+
   it('globe 는 상하 드래그로 위도 rotate 도 갱신된다', async () => {
     const el = document.createElement('div');
     const instance = mount(el, 'earth:\n  projection: orthographic\n  show: 아프리카');
