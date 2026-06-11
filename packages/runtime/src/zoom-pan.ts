@@ -37,6 +37,13 @@ export interface ZoomPanOptions {
   onRotate?: (dxPx: number, dyPx: number) => void;
   /** 회전 드래그가 끝났을 때(pointerup/cancel) 1회 호출 — 고품질 스냅 재렌더용. */
   onRotateEnd?: () => void;
+  /**
+   * flat 모드 — 줌아웃 한계를 "지도가 세로로 뷰포트를 채우는 지점"까지로 제한한다.
+   * equirectangular(2:1)를 가로 전체가 보이도록 줌아웃하면 세로가 남아 캔버스와
+   * 분리되므로, 가로 전체(outer.width)를 한계에서 제외하고 세로 cover 만 허용한다
+   * (가로 탐색은 좌우 wrap 으로). globe 는 false(전체 디스크가 보이게).
+   */
+  coverVertical?: boolean;
 }
 
 export function attachZoomPan(
@@ -52,8 +59,11 @@ export function attachZoomPan(
   const aspect = base[3] / base[2];
   const outer = opts.outerBounds ?? base;
   const minW = base[2] / maxZoom;
-  // 줌아웃 최대치: 전세계가 가로·세로 모두 들어오도록(종횡비 고정 보정).
-  const maxW = Math.max(base[2], outer[2], outer[3] / aspect);
+  // 줌아웃 최대치. flat(coverVertical)은 세로 cover 까지만 — 가로 전체(outer[2])를
+  // 제외해 2:1 전세계가 보이며 위아래가 비는 걸 막는다. globe 는 가로·세로 모두 cover.
+  const maxW = opts.coverVertical
+    ? Math.max(base[2], outer[3] / aspect)
+    : Math.max(base[2], outer[2], outer[3] / aspect);
 
   let view: ViewBox = [...base] as ViewBox;
 

@@ -23,6 +23,20 @@ describe('zoom-pan — 줌아웃 한계', () => {
     // maxW = max(base.w=100, outer.w=1000, outer.h/aspect=600/0.6=1000) = 1000
     expect(ctrl.getView()[2]).toBeCloseTo(1000, 5);
   });
+
+  it('coverVertical(flat): 줌아웃을 세로 cover 까지만 — 가로 전체(outer.w)는 제외', () => {
+    const svg = document.createElementNS(SVG_NS, 'svg') as SVGSVGElement;
+    const base: ViewBox = [0, 0, 100, 60]; // aspect 0.6
+    // 2:1 전세계 sphere(가로가 세로의 2배) — 가로 전체를 보면 위아래가 빈다.
+    const outer: ViewBox = [-1000, -250, 2000, 500];
+    const ctrl = attachZoomPan(svg, base, { interactive: false, outerBounds: outer, coverVertical: true });
+    ctrl.setView([0, 0, 9999, 9999]);
+    // maxW = max(base.w=100, outer.h/aspect=500/0.6≈833) = 833 (outer.w=2000 제외)
+    const w = ctrl.getView()[2];
+    expect(w).toBeCloseTo(500 / 0.6, 2);
+    // 최대 줌아웃 시 뷰 높이 = sphere 높이(세로 cover, 가로는 wrap 으로 탐색).
+    expect(ctrl.getView()[3]).toBeCloseTo(500, 2);
+  });
 });
 
 describe('전세계 범위 — 단일 국가 fit 이어도 sphere 범위는 훨씬 크다', () => {

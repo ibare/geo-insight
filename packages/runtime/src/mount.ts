@@ -257,10 +257,15 @@ export function mount(
     const outer = worldBounds(result) ?? vb;
     mapBounds = outer;
     const interactive = opts.interactive ?? true;
+    const flat = result.meta.projectionParams.type !== 'orthographic';
+    // flat 은 줌아웃을 세로 cover 까지만 제한 + 레터박스를 바다색으로 채워 캔버스와
+    // 분리돼 보이지 않게 한다. globe 는 다크 배경에 디스크가 떠야 하므로 배경 비움.
+    svg.style.background = flat ? result.scene.theme.ocean : '';
     // 모델이 있을 때만 드래그=회전(재투영). 미리 컴파일된 정적 결과는 기존 viewBox 팬.
     controller = attachZoomPan(svg, vb, {
       interactive,
       outerBounds: outer,
+      coverVertical: flat,
       ...(interactive && model ? { onRotate, onRotateEnd } : {}),
     });
 
