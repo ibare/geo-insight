@@ -138,6 +138,7 @@ function composeScene(
     height,
     projType: built.config.projectionType,
     centerLon: -camera.meta.projectionParams.rotate[0],
+    centerLat: -camera.meta.projectionParams.rotate[1],
     isWater: (ll) => locator.locate(ll) === null,
   });
 

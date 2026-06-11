@@ -40,18 +40,21 @@ export interface OceanContext {
   projType: ProjectionType;
   /** rotate 로부터 역산한 지리적 중심 경도. */
   centerLon: number;
+  /** rotate 로부터 역산한 지리적 중심 위도(globe 틸트). 기본 0. */
+  centerLat?: number;
   /** 해당 좌표가 바다인지(어느 국가에도 속하지 않음). */
   isWater(lonlat: [number, number]): boolean;
 }
 
 export function layoutOceans(ctx: OceanContext): PlacedOcean[] {
   const { project, unproject, width, height, projType, centerLon, isWater } = ctx;
+  const centerLat = ctx.centerLat ?? 0;
   const out: PlacedOcean[] = [];
   const ex = width * EXPAND;
   const ey = height * EXPAND;
 
   for (const o of OCEANS) {
-    if (projType === 'orthographic' && geoDistance(o.at, [centerLon, 0]) > Math.PI / 2 - 0.03) {
+    if (projType === 'orthographic' && geoDistance(o.at, [centerLon, centerLat]) > Math.PI / 2 - 0.03) {
       continue;
     }
     const p = project(o.at);

@@ -95,6 +95,25 @@ describe('compile — fit', () => {
   });
 });
 
+describe('compile — globe(orthographic) 중앙 정렬', () => {
+  it('디스크는 fit 과 무관하게 캔버스 중앙에 온다(translate=중심)', () => {
+    // dominant fit(기본)이어도 globe 는 disc 를 중앙 배치해야 한다.
+    const { meta } = compile('earth:\n  projection: orthographic\n  show: 아프리카, 수단, 인도', {
+      width: 960,
+      height: 600,
+    });
+    const [tx, ty] = meta.projectionParams.translate;
+    expect(tx).toBeCloseTo(480, 0);
+    expect(ty).toBeCloseTo(300, 0);
+  });
+
+  it('center 미지정 globe 는 표시 지역 중심을 정면으로(rotate 위도≠0)', () => {
+    const { meta } = compile('earth:\n  projection: orthographic\n  show: 한국');
+    // 한국(위도 ~37N)을 정면으로 → rotate[1] = -lat < 0 (0 이 아님).
+    expect(meta.projectionParams.rotate[1]).not.toBe(0);
+  });
+});
+
 describe('compile — 진단', () => {
   it('미해석 이름은 error + suggestions', () => {
     const { diagnostics } = compile(`earth:\n  show: 수`);

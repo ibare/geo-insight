@@ -10,7 +10,7 @@
 
 import type { GeoFeature, Resolver } from '@geoinsight/data';
 import { createResolver, normalizeName } from '@geoinsight/data';
-import { geoPath } from 'd3-geo';
+import { geoCentroid, geoPath } from 'd3-geo';
 import { centroidOf, largestPolygon } from '../geometry.js';
 import { createPathString, createProjection, type Projection, round } from '../projection.js';
 import type { Entity, ProjectionType, SceneMeta } from '../types.js';
@@ -70,16 +70,31 @@ export function createCamera(entities: Entity[], config: SceneConfig, opts: Came
     scale = opts.fixed.scale;
     translate = [opts.fixed.translate[0], opts.fixed.translate[1]];
   } else {
-    const centerLon = resolveCenterLon(config, entities, resolver);
-    rotate = [-centerLon, 0];
-    projection.rotate(rotate);
-
-    const fitObject = fitGeometry(config, entities, centerLon);
     const extent: [[number, number], [number, number]] = [
       [padding, padding],
       [width - padding, height - padding],
     ];
-    projection.fitExtent(extent, fitObject as never);
+    if (config.projectionType === 'orthographic') {
+      // globe — 디스크(전체 sphere)를 뷰포트 중앙에 맞춘다(dominant/entities fit 무시).
+      // 회전으로는 disc 위치를 못 바꾸므로 항상 중앙 배치해야 캔버스 중심에 온다.
+      // 포커스 지역이 정면을 향하도록 rotate 로 조준: center 가 명시되면 그 경도(위도 0),
+      // 아니면 표시 지역 중심(경위도)을 정면에.
+      const explicit = config.arrange != null || (config.centerRaw?.trim() ?? '') !== '';
+      if (explicit) {
+        rotate = [-resolveCenterLon(config, entities, resolver), 0];
+      } else {
+        const f = focusLonLat(config, entities);
+        rotate = f ? [-f[0], -f[1]] : [0, 0];
+      }
+      projection.rotate(rotate);
+      projection.fitExtent(extent, { type: 'Sphere' } as never);
+    } else {
+      const centerLon = resolveCenterLon(config, entities, resolver);
+      rotate = [-centerLon, 0];
+      projection.rotate(rotate);
+      const fitObject = fitGeometry(config, entities, centerLon);
+      projection.fitExtent(extent, fitObject as never);
+    }
     scale = projection.scale();
     const t = projection.translate();
     translate = [t[0]!, t[1]!];
@@ -144,6 +159,18 @@ function centroidLonFor(name: string, entities: Entity[], resolver: Resolver): n
     return preset ?? null;
   }
   return centroidOf(res.features)[0];
+}
+
+/**
+ * globe 정면 조준용 포커스 지역 중심 [lon, lat]. fitGeometry(dominant/entities)의
+ * 구면 중심을 쓴다 — 표시 지역이 디스크 정면에 오게. 비어있으면(전세계) null.
+ */
+function focusLonLat(config: SceneConfig, entities: Entity[]): [number, number] | null {
+  const fit = fitGeometry(config, entities, 0);
+  if (!fit || (fit as { type?: string }).type === 'Sphere') return null;
+  const c = geoCentroid(fit as never);
+  if (!c || !Number.isFinite(c[0]) || !Number.isFinite(c[1])) return null;
+  return [c[0], c[1]];
 }
 
 /** A 가 왼쪽, B 가 오른쪽이 되도록 중앙 자오선 역산. */
