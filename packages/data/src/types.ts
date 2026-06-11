@@ -103,6 +103,11 @@ export interface DataSource {
   /** 전체 국가 feature 목록 (안정 순서: ccn3 오름차순). */
   allCountries(): GeoFeature[];
   /**
+   * 거친(저해상도) 전체 국가 목록 — 회전/팬 드래그 중 faint world 배경을 값싸게
+   * 재투영하기 위한 110m 변형. 미구현 시 호출부가 allCountries 로 폴백.
+   */
+  coarseCountries?(): GeoFeature[];
+  /**
    * 해당 국가의 **이미 로드된** ADM1 feature 목록 (없으면 빈 배열).
    * 로딩은 외부(런타임 fetch/Node fs)가 loadAdm1 로 주입 — compile 은 동기·순수 유지.
    */

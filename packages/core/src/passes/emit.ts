@@ -24,20 +24,31 @@ export interface EmitInput {
   oceans: PlacedOcean[];
   theme: Theme;
   dataSource: DataSource;
+  /** 드래그 재투영 중이면 faint world 배경을 거친(110m) 지오메트리로 — 값싼 재렌더. */
+  coarseWorld?: boolean;
 }
 
 export function emit(input: EmitInput): string {
+  const [vx, vy, vw, vh] = input.camera.meta.viewBox;
+  // 콘텐츠를 gi-content 그룹으로 감싼다 — 런타임 회전/팬 재투영 시 이 그룹의
+  // innerHTML 만 교체하면 svg 리스너·편집 오버레이(하이라이트)를 보존할 수 있다.
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vx} ${vy} ${vw} ${vh}" ` +
+    `width="${vw}" height="${vh}" class="geoinsight" role="img">\n` +
+    `<g class="gi-content">\n${emitContent(input)}\n</g>\n</svg>`
+  );
+}
+
+/**
+ * 콘텐츠(svg 내부) 마크업만 생성 — 런타임이 회전/팬 재투영 후 gi-content 그룹에
+ * 그대로 주입한다. 좌표계(viewBox)는 emit 의 svg 래퍼가 책임진다.
+ */
+export function emitContent(input: EmitInput): string {
   const { scene, camera, entities, links, labels, oceans, theme, dataSource } = input;
-  const [vx, vy, vw, vh] = camera.meta.viewBox;
   const out: string[] = [];
   // showOnly(격리) — 바다/그래티큘/이웃국/대양라벨/인접구역 배경을 모두 생략하고
   // 대상 국가의 행정구역만 빈 배경에 띄운다.
   const isolated = scene.showOnly != null;
-
-  out.push(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vx} ${vy} ${vw} ${vh}" ` +
-      `width="${vw}" height="${vh}" class="geoinsight" role="img">`,
-  );
 
   if (!isolated) {
     // 1. sphere (ocean)
@@ -51,8 +62,12 @@ export function emit(input: EmitInput): string {
         path(grat, { class: 'gi-graticule', fill: 'none', stroke: theme.graticule, 'stroke-width': '0.5' }),
       );
 
-    // 3. faint world (비선택 국가 배경)
-    const world = camera.path({ type: 'FeatureCollection', features: dataSource.allCountries() });
+    // 3. faint world (비선택 국가 배경) — 드래그 중엔 거친 110m 으로 값싸게.
+    const worldFeatures =
+      input.coarseWorld && dataSource.coarseCountries
+        ? dataSource.coarseCountries()
+        : dataSource.allCountries();
+    const world = camera.path({ type: 'FeatureCollection', features: worldFeatures });
     if (world)
       out.push(
         path(world, {
@@ -150,7 +165,6 @@ export function emit(input: EmitInput): string {
     out.push('</g>');
   }
 
-  out.push('</svg>');
   return out.join('\n');
 }
 

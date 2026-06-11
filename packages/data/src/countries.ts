@@ -20,6 +20,7 @@ import type {
 // (world-atlas JSON 은 json-modules.d.ts 에서 unknown 으로 선언)
 import worldCountriesRaw from 'world-countries';
 import topology50mRaw from 'world-atlas/countries-50m.json';
+import topology110mRaw from 'world-atlas/countries-110m.json';
 
 interface RawCountry {
   ccn3: string;
@@ -58,6 +59,7 @@ interface FeatureCollectionLike {
 
 const worldCountries = worldCountriesRaw as unknown as RawCountry[];
 const topology50m = topology50mRaw as unknown as Topology;
+const topology110m = topology110mRaw as unknown as Topology;
 
 /** ccn3 → 메타데이터 색인. */
 const metaByCode = new Map<string, RawCountry>();
@@ -79,10 +81,10 @@ function toCountryGeometry(geom: {
   return null;
 }
 
-function buildFeatures(): GeoFeature[] {
+function buildFeatures(topology: Topology): GeoFeature[] {
   const fc = feature(
-    topology50m as never,
-    topology50m.objects.countries as never,
+    topology as never,
+    topology.objects.countries as never,
   ) as unknown as FeatureCollectionLike;
 
   const out: GeoFeature[] = [];
@@ -127,8 +129,15 @@ function buildFeatures(): GeoFeature[] {
 
 let cached: GeoFeature[] | null = null;
 function features(): GeoFeature[] {
-  if (!cached) cached = buildFeatures();
+  if (!cached) cached = buildFeatures(topology50m);
   return cached;
+}
+
+let cachedCoarse: GeoFeature[] | null = null;
+/** 110m 거친 국가 목록 — 드래그 중 faint world 배경 재투영용(값싼 재렌더). */
+function coarseFeatures(): GeoFeature[] {
+  if (!cachedCoarse) cachedCoarse = buildFeatures(topology110m);
+  return cachedCoarse;
 }
 
 /** 기본 DataSource — 번들된 world-atlas 50m + world-countries. ADM1 은 주입 전까지 비어있다. */
@@ -142,6 +151,7 @@ export function createDefaultDataSource(): DataSource {
   return {
     countryByCode: (ccn3) => byCode.get(ccn3),
     allCountries: () => features(),
+    coarseCountries: () => coarseFeatures(),
     adm1: (ccn3) => adm1Store.get(ccn3) ?? [],
     loadAdm1: (ccn3, fs) => {
       adm1Store.set(ccn3, fs);

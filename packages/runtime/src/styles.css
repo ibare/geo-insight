@@ -204,59 +204,29 @@
   border-color: #3fb6ab;
 }
 
-/* 회전 기즈모(지구본 노브) */
-[data-geoinsight-root] .gi-edit-gizmo {
+/* 모드 토글(flat ↔ globe) 버튼 — 좌하단, 캔버스 hover 시 노출 */
+[data-geoinsight-root] .gi-edit-mode {
   position: absolute;
   z-index: 4;
   left: 12px;
   bottom: 12px;
   display: none; /* 캔버스 hover 시에만 노출 */
-  flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 6px 8px 5px;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
   background: rgba(15, 23, 38, 0.82);
   border: 1px solid rgba(127, 140, 158, 0.35);
   border-radius: 10px;
-  cursor: grab;
-  touch-action: none;
+  cursor: pointer;
   user-select: none;
 }
-[data-geoinsight-root]:hover .gi-edit-gizmo {
+[data-geoinsight-root]:hover .gi-edit-mode {
   display: flex;
 }
-[data-geoinsight-root] .gi-edit-gizmo:active {
-  cursor: grabbing;
-}
-[data-geoinsight-root] .gi-gizmo-ring {
-  fill: rgba(63, 182, 171, 0.06);
-  stroke: rgba(127, 140, 158, 0.5);
-  stroke-width: 1;
-}
-[data-geoinsight-root] .gi-gizmo-axis {
-  stroke: rgba(127, 140, 158, 0.25);
-  stroke-width: 1;
-}
-[data-geoinsight-root] .gi-gizmo-needle {
-  stroke: #3fb6ab;
-  stroke-width: 2;
-  stroke-linecap: round;
-}
-[data-geoinsight-root] .gi-gizmo-hub {
-  fill: #3fb6ab;
-}
-[data-geoinsight-root] .gi-gizmo-handle {
-  fill: #e7edf5;
-  stroke: #3fb6ab;
-  stroke-width: 1.5;
-}
-[data-geoinsight-root] .gi-gizmo-tick {
-  fill: #8a99ad;
-  font-size: 7px;
-  font-family: system-ui, sans-serif;
-}
-[data-geoinsight-root] .gi-gizmo-label {
-  font-size: 11px;
-  color: #cdd6e2;
-  font-family: system-ui, sans-serif;
+[data-geoinsight-root] .gi-edit-mode:hover {
+  border-color: #3fb6ab;
 }

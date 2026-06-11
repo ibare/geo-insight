@@ -62,9 +62,9 @@ describe('mount — ADM1 지연 로딩', () => {
 
     // 미국 ADM1 로드 → California 가 캔버스 엔티티로 렌더.
     await vi.waitFor(() => expect(el.querySelector('[data-key="USA-3521"]')).toBeTruthy());
-    // showOnly 에선 대륙 칩·기즈모 숨김.
+    // showOnly 에선 대륙 칩·모드 토글 숨김.
     expect(el.querySelector<HTMLElement>('.gi-edit-chips')!.style.display).toBe('none');
-    expect(el.querySelector<HTMLElement>('.gi-edit-gizmo')!.style.display).toBe('none');
+    expect(el.querySelector<HTMLElement>('.gi-edit-mode')!.style.display).toBe('none');
 
     // California path 를 클릭 → show 에 추가(선택).
     Object.defineProperty(document, 'elementFromPoint', {

@@ -197,6 +197,23 @@ export function setShowOnly(source: string, name: string): string {
   return lines.join('\n');
 }
 
+/**
+ * 투영 설정 — flat(equirectangular) ↔ globe(orthographic) 모드 토글용.
+ * projection 라인을 설정/교체한다(없으면 헤더 다음 삽입). 회전/팬은 휘발 상태라
+ * DSL 에 기록하지 않으므로 모드 전환만 소스에 남는다.
+ */
+export function setProjection(source: string, type: string): string {
+  const lines = splitLines(source);
+  const idx = findPropLine(lines, 'projection');
+  if (idx >= 0) {
+    const ind = /^(\s*)/.exec(lines[idx]!)![1]!;
+    lines[idx] = `${ind}projection: ${type}`;
+  } else {
+    insertAfter(lines, headerIndex(lines), `${detectIndent(lines)}projection: ${type}`);
+  }
+  return lines.join('\n');
+}
+
 /** showOnly(격리) 해제 — showOnly 라인 제거(세계 뷰로 복귀). */
 export function removeShowOnly(source: string): string {
   return splitLines(source)

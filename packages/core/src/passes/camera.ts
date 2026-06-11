@@ -33,6 +33,12 @@ export interface CameraOptions {
   /** fit:world / 배경 faint world 용 전체 sphere 패딩. */
   padding?: number;
   resolver?: Resolver;
+  /**
+   * 팬/회전 재투영용 — fitExtent 를 건너뛰고 이 파라미터로 카메라를 고정한다.
+   * 최초 렌더의 fit 결과(scale/translate)를 그대로 재사용하고 rotate 만 바꿔
+   * "프레이밍은 그대로, 지구만 회전" 시킨다. rotate=[λ,φ] (globe 는 φ 로 위도 회전).
+   */
+  fixed?: { rotate: [number, number]; scale: number; translate: [number, number] };
 }
 
 /** 중앙 자오선 프리셋 — normalizeName 적용된 키. */
@@ -52,20 +58,34 @@ export function createCamera(entities: Entity[], config: SceneConfig, opts: Came
   const padding = opts.padding ?? Math.round(Math.min(width, height) * 0.06);
   const resolver = opts.resolver ?? createResolver();
 
-  const centerLon = resolveCenterLon(config, entities, resolver);
   const { projection, fallbackFrom } = createProjection(config.projectionType);
-  projection.rotate([-centerLon, 0]);
 
-  const fitObject = fitGeometry(config, entities, centerLon);
-  const extent: [[number, number], [number, number]] = [
-    [padding, padding],
-    [width - padding, height - padding],
-  ];
-  projection.fitExtent(extent, fitObject as never);
+  let rotate: [number, number];
+  let scale: number;
+  let translate: [number, number];
+  if (opts.fixed) {
+    // 재투영(팬/회전) — fit 을 다시 돌리지 않고 고정 파라미터로 복원. rotate 만 변동.
+    rotate = opts.fixed.rotate;
+    projection.rotate(rotate).scale(opts.fixed.scale).translate(opts.fixed.translate);
+    scale = opts.fixed.scale;
+    translate = [opts.fixed.translate[0], opts.fixed.translate[1]];
+  } else {
+    const centerLon = resolveCenterLon(config, entities, resolver);
+    rotate = [-centerLon, 0];
+    projection.rotate(rotate);
+
+    const fitObject = fitGeometry(config, entities, centerLon);
+    const extent: [[number, number], [number, number]] = [
+      [padding, padding],
+      [width - padding, height - padding],
+    ];
+    projection.fitExtent(extent, fitObject as never);
+    scale = projection.scale();
+    const t = projection.translate();
+    translate = [t[0]!, t[1]!];
+  }
 
   const path = createPathString(projection, precision);
-  const scale = projection.scale();
-  const translate = projection.translate();
 
   const meta: SceneMeta = {
     viewBox: [0, 0, width, height],
@@ -74,7 +94,7 @@ export function createCamera(entities: Entity[], config: SceneConfig, opts: Came
     precision,
     projectionParams: {
       type: config.projectionType,
-      rotate: [-centerLon, 0],
+      rotate,
       scale: round(scale, 4),
       translate: [round(translate[0], 4), round(translate[1], 4)],
     },

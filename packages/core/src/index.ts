@@ -2,10 +2,19 @@
  * @geoinsight/core — DSL → IR → SVG 컴파일러. 프레임워크/DOM 비종속.
  */
 
-export { compile, type InternalOptions } from './compile.js';
+export {
+  compile,
+  buildModel,
+  renderModel,
+  renderContent,
+  type InternalOptions,
+  type SceneModel,
+  type RenderOptions,
+} from './compile.js';
 export { parse } from './parser.js';
 export { registerExtProjection } from './projection.js';
 export { cameraFromMeta, type MetaCamera } from './passes/camera.js';
+export { emitContent, type EmitInput } from './passes/emit.js';
 export { createLocator, type Locator, type LocatedCountry } from './locate.js';
 export { adm1CountriesFor } from './adm1-detect.js';
 export {
@@ -17,6 +26,7 @@ export {
   setLinkType,
   setLinkLabel,
   setCenter,
+  setProjection,
   setShowOnly,
   removeShowOnly,
 } from './edit.js';

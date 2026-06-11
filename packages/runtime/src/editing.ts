@@ -19,9 +19,9 @@ import {
   removeLink,
   removeShowName,
   removeShowOnly,
-  setCenter,
   setLinkLabel,
   setLinkType,
+  setProjection,
   setShowOnly,
   type CompileResult,
   type Entity,
@@ -47,6 +47,8 @@ export interface EditingParams {
 }
 
 export interface EditingController {
+  /** 회전 재투영 후 카메라(meta)·장면 참조를 최신 result 로 갱신(재마운트 없이). */
+  refresh(result: CompileResult): void;
   destroy(): void;
 }
 
@@ -64,9 +66,9 @@ const CLICK_MOVE_THRESHOLD = 5; // px
 
 export function attachEditing(params: EditingParams): EditingController {
   const { svg, host, getView, result, applyEdit, getSource } = params;
-  const cam: MetaCamera = cameraFromMeta(result.meta);
+  let cam: MetaCamera = cameraFromMeta(result.meta);
   const locator = params.locator ?? createLocator();
-  const scene = result.scene;
+  let scene = result.scene;
 
   // ── 하이라이트 path (지도 좌표계 = viewBox, 줌/팬에 자동 정렬) ──
   const highlight = document.createElementNS(SVG_NS, 'path');
@@ -135,23 +137,30 @@ export function attachEditing(params: EditingParams): EditingController {
   host.appendChild(toolbar);
   for (const { el, name } of chipEls) el.classList.toggle('active', hasShowName(getSource(), name));
 
-  // ── 회전 기즈모(지구본 노브) — 중앙 자오선(center) 제어 ──
-  // 경도는 ±180 순환이라 양끝 없는 원형 다이얼이 자연스럽다. 바늘이 현재 중앙
-  // 자오선을 가리키고, 잡고 돌리면 지구가 수평 회전한다. 0°=상단, 90E=우측,
-  // 180=하단, 90W=좌측. 드래그는 window 리스너라 프레임마다 재렌더돼도 유지된다.
-  const centerLon = -(scene.projection.rotate[0] ?? 0);
-  const gizmo = document.createElement('div');
-  gizmo.className = 'gi-edit-gizmo';
-  gizmo.innerHTML = renderGizmo(centerLon);
-  gizmo.addEventListener('pointerdown', startCenterDrag);
-  host.appendChild(gizmo);
+  // ── 모드 토글(flat ↔ globe) — 투영 전환 버튼 ──
+  // 펼친 지도(equirectangular)와 지구본(orthographic)을 오간다. 회전/팬은 휘발
+  // 상태라 DSL 에 남지 않고, 이 토글만 projection 라인으로 소스에 기록된다.
+  const modeBtn = document.createElement('button');
+  modeBtn.type = 'button';
+  modeBtn.className = 'gi-edit-mode';
+  const isGlobe = (): boolean => scene.projection.type === 'orthographic';
+  modeBtn.textContent = isGlobe() ? '🗺' : '🌐';
+  modeBtn.title = isGlobe() ? '펼친 지도로' : '지구본으로';
+  modeBtn.setAttribute('aria-label', modeBtn.title);
+  modeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const src = getSource();
+    const next = setProjection(src, isGlobe() ? 'equirectangular' : 'orthographic');
+    if (next !== src) applyEdit(next);
+  });
+  host.appendChild(modeBtn);
 
-  // showOnly(격리) 에선 대륙 칩·중앙 기즈모가 무의미 → 숨김(인라인 스타일이 :hover 규칙보다 우선).
+  // showOnly(격리) 에선 대륙 칩·모드 토글이 무의미 → 숨김(인라인 스타일이 :hover 규칙보다 우선).
   // 대신 '← 전체 지도' 나가기 버튼을 둔다.
   let exitBtn: HTMLButtonElement | null = null;
   if (scene.showOnly) {
     toolbar.style.display = 'none';
-    gizmo.style.display = 'none';
+    modeBtn.style.display = 'none';
     exitBtn = document.createElement('button');
     exitBtn.type = 'button';
     exitBtn.className = 'gi-edit-exit';
@@ -163,42 +172,6 @@ export function attachEditing(params: EditingParams): EditingController {
       if (next !== src) applyEdit(next);
     });
     host.appendChild(exitBtn);
-  }
-
-  function startCenterDrag(e: PointerEvent): void {
-    e.preventDefault();
-    e.stopPropagation();
-    const svgEl = gizmo.querySelector('svg');
-    if (!svgEl) return;
-    const rect = svgEl.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    let raf = 0;
-    let pendingLon: number | null = null;
-    const flush = (): void => {
-      raf = 0;
-      if (pendingLon == null) return;
-      const lon = pendingLon;
-      pendingLon = null;
-      const src = getSource();
-      const next = setCenter(src, lon);
-      if (next !== src) applyEdit(next);
-    };
-    const move = (ev: PointerEvent): void => {
-      pendingLon = angleToLon(ev.clientX - cx, ev.clientY - cy);
-      if (!raf && typeof requestAnimationFrame === 'function') raf = requestAnimationFrame(flush);
-      else if (typeof requestAnimationFrame !== 'function') flush();
-    };
-    const up = (): void => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-      if (raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(raf);
-      flush();
-    };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-    // 드래그 시작 지점도 즉시 반영(클릭 회전).
-    move(e);
   }
 
   // ── 컨텍스트 메뉴 ──
@@ -567,6 +540,14 @@ export function attachEditing(params: EditingParams): EditingController {
   }
 
   return {
+    refresh(next) {
+      // 회전 재투영 — meta(투영 rotate)가 바뀌었으니 카메라 재구성. 엔티티/링크 등
+      // 장면 데이터는 동일 모델이라 그대로지만 scene 객체는 새로 만들어졌으니 갱신.
+      scene = next.scene;
+      cam = cameraFromMeta(next.meta);
+      // 진행 중인 hover 하이라이트는 좌표가 어긋났을 수 있으니 숨긴다(다음 hover 에 재계산).
+      onLeave();
+    },
     destroy() {
       if (rafId) cancelAnimationFrame(rafId);
       svg.removeEventListener('pointermove', onMove);
@@ -578,46 +559,9 @@ export function attachEditing(params: EditingParams): EditingController {
       highlight.remove();
       tooltip.remove();
       toolbar.remove();
-      gizmo.remove();
+      modeBtn.remove();
       exitBtn?.remove();
     },
   };
 }
 
-const GIZMO_D = 76;
-const GIZMO_C = GIZMO_D / 2;
-const GIZMO_R = 26;
-
-/** 화면 벡터(다이얼 중심 기준) → 경도. 상단=0, 시계방향 +동경, 하단=±180. */
-function angleToLon(dx: number, dy: number): number {
-  const deg = (Math.atan2(dx, -dy) * 180) / Math.PI;
-  return ((((deg + 180) % 360) + 360) % 360) - 180;
-}
-
-function fmtLon(lon: number): string {
-  const v = Math.round(lon);
-  if (v === 0) return '0°';
-  if (v === 180 || v === -180) return '180°';
-  return `${Math.abs(v)}°${v > 0 ? 'E' : 'W'}`;
-}
-
-/** 현재 center 를 가리키는 회전 다이얼 SVG + 라벨. */
-function renderGizmo(centerLon: number): string {
-  const a = (centerLon * Math.PI) / 180;
-  const tx = (GIZMO_C + GIZMO_R * Math.sin(a)).toFixed(2);
-  const ty = (GIZMO_C - GIZMO_R * Math.cos(a)).toFixed(2);
-  return (
-    `<svg width="${GIZMO_D}" height="${GIZMO_D}" viewBox="0 0 ${GIZMO_D} ${GIZMO_D}">` +
-    `<circle class="gi-gizmo-ring" cx="${GIZMO_C}" cy="${GIZMO_C}" r="${GIZMO_R}"/>` +
-    `<line class="gi-gizmo-axis" x1="${GIZMO_C}" y1="${GIZMO_C - GIZMO_R}" x2="${GIZMO_C}" y2="${GIZMO_C + GIZMO_R}"/>` +
-    `<line class="gi-gizmo-needle" x1="${GIZMO_C}" y1="${GIZMO_C}" x2="${tx}" y2="${ty}"/>` +
-    `<circle class="gi-gizmo-hub" cx="${GIZMO_C}" cy="${GIZMO_C}" r="2.5"/>` +
-    `<circle class="gi-gizmo-handle" cx="${tx}" cy="${ty}" r="4.5"/>` +
-    `<text class="gi-gizmo-tick" x="${GIZMO_C}" y="9" text-anchor="middle">0</text>` +
-    `<text class="gi-gizmo-tick" x="${GIZMO_D - 3}" y="${GIZMO_C + 3}" text-anchor="end">90E</text>` +
-    `<text class="gi-gizmo-tick" x="${GIZMO_C}" y="${GIZMO_D - 3}" text-anchor="middle">180</text>` +
-    `<text class="gi-gizmo-tick" x="3" y="${GIZMO_C + 3}" text-anchor="start">90W</text>` +
-    `</svg>` +
-    `<div class="gi-gizmo-label">중앙 ${fmtLon(centerLon)}</div>`
-  );
-}

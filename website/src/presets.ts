@@ -42,6 +42,22 @@ export const PRESETS: Preset[] = [
   show: 서유럽, 북유럽, 남유럽, 동유럽`,
   },
   {
+    label: '지구본 (globe 모드)',
+    source: `earth "지구본":
+  projection: orthographic
+  fit: world
+  center: 120
+  show: 아시아, 한국, 일본`,
+  },
+  {
+    label: '펼친 지도 (flat · 무한 wrap)',
+    source: `earth "세계":
+  projection: equirectangular
+  fit: world
+  center: 태평양
+  show: 아시아, 아프리카, 아메리카`,
+  },
+  {
     label: '미국 주 (ADM1)',
     source: `earth "미국 주":
   center: -98

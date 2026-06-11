@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { cameraFromMeta } from '@geoinsight/core';
 import { mount } from '../src/mount.js';
 
@@ -206,16 +206,8 @@ describe('editing — 링크 클릭 메뉴', () => {
   });
 });
 
-describe('editing — 회전 기즈모(center)', () => {
-  it('기즈모가 렌더되고 현재 center 를 라벨로 보인다', () => {
-    const el = document.createElement('div');
-    const instance = mount(el, 'earth "t":\n  center: 태평양\n  show: 아프리카', { editable: true });
-    const label = el.querySelector('.gi-gizmo-label');
-    expect(label?.textContent).toContain('180'); // 태평양 = 180
-    instance.destroy();
-  });
-
-  it('기즈모를 우측으로 돌리면 center 가 동경(~90E)으로 갱신된다', () => {
+describe('editing — 모드 토글(flat ↔ globe)', () => {
+  it('flat 기본 → 토글 버튼이 지구본(🌐) 제안, 클릭 시 orthographic 기록', () => {
     const el = document.createElement('div');
     let lastSource = '';
     const instance = mount(el, 'earth:\n  show: 아프리카', {
@@ -224,18 +216,61 @@ describe('editing — 회전 기즈모(center)', () => {
         lastSource = s;
       },
     });
-    const giz = el.querySelector<SVGSVGElement>('.gi-edit-gizmo svg')!;
-    Object.defineProperty(giz, 'getBoundingClientRect', {
-      configurable: true,
-      value: () => ({ left: 0, top: 0, width: 76, height: 76, right: 76, bottom: 76, x: 0, y: 0 }),
+    const btn = el.querySelector<HTMLButtonElement>('.gi-edit-mode')!;
+    expect(btn).toBeTruthy();
+    expect(btn.textContent).toBe('🌐'); // flat → 지구본으로 전환 제안
+    btn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(lastSource).toContain('projection: orthographic');
+    instance.destroy();
+  });
+
+  it('globe(orthographic) → 토글 버튼이 펼친 지도(🗺) 제안, 클릭 시 equirectangular 기록', () => {
+    const el = document.createElement('div');
+    let lastSource = '';
+    const instance = mount(el, 'earth:\n  projection: orthographic\n  show: 아프리카', {
+      editable: true,
+      onChange: (s) => {
+        lastSource = s;
+      },
     });
-    // 중심(38,38) 기준 우측 → 90E
-    el.querySelector('.gi-edit-gizmo')!.dispatchEvent(
-      new MouseEvent('pointerdown', { clientX: 38, clientY: 38, bubbles: true }),
+    const btn = el.querySelector<HTMLButtonElement>('.gi-edit-mode')!;
+    expect(btn.textContent).toBe('🗺');
+    btn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(lastSource).toContain('projection: equirectangular');
+    instance.destroy();
+  });
+});
+
+describe('editing — 회전 패닝(재투영)', () => {
+  it('좌우 드래그 → 경도 rotate 가 갱신되고 재투영된다(flat)', async () => {
+    const el = document.createElement('div');
+    const instance = mount(el, 'earth:\n  show: 아프리카');
+    const svg = el.querySelector('svg')!;
+    stubRect(svg, 960, 576);
+    const before = instance.getResult()!.meta.projectionParams.rotate[0];
+    svg.dispatchEvent(new MouseEvent('pointerdown', { clientX: 100, clientY: 100, bubbles: true }));
+    svg.dispatchEvent(new MouseEvent('pointermove', { clientX: 260, clientY: 100, bubbles: true }));
+    svg.dispatchEvent(new MouseEvent('pointerup', { clientX: 260, clientY: 100, bubbles: true }));
+    await vi.waitFor(() =>
+      expect(instance.getResult()!.meta.projectionParams.rotate[0]).not.toBe(before),
     );
-    window.dispatchEvent(new MouseEvent('pointermove', { clientX: 74, clientY: 38 }));
-    window.dispatchEvent(new MouseEvent('pointerup', {}));
-    expect(lastSource).toMatch(/center: 9\d/); // 약 90E
+    // flat 은 위도 회전 없음(상하 패닝 없음).
+    expect(instance.getResult()!.meta.projectionParams.rotate[1]).toBe(0);
+    instance.destroy();
+  });
+
+  it('globe 는 상하 드래그로 위도 rotate 도 갱신된다', async () => {
+    const el = document.createElement('div');
+    const instance = mount(el, 'earth:\n  projection: orthographic\n  show: 아프리카');
+    const svg = el.querySelector('svg')!;
+    stubRect(svg, 960, 576);
+    const before = instance.getResult()!.meta.projectionParams.rotate[1];
+    svg.dispatchEvent(new MouseEvent('pointerdown', { clientX: 100, clientY: 100, bubbles: true }));
+    svg.dispatchEvent(new MouseEvent('pointermove', { clientX: 100, clientY: 220, bubbles: true }));
+    svg.dispatchEvent(new MouseEvent('pointerup', { clientX: 100, clientY: 220, bubbles: true }));
+    await vi.waitFor(() =>
+      expect(instance.getResult()!.meta.projectionParams.rotate[1]).not.toBe(before),
+    );
     instance.destroy();
   });
 });

@@ -29,6 +29,14 @@ export interface ZoomPanOptions {
    * 수준까지 줌아웃해 다른 지역을 탐색할 수 있다.
    */
   outerBounds?: ViewBox;
+  /**
+   * 제공되면 드래그를 viewBox 평행이동 대신 **회전**으로 처리한다(flat=좌우 wrap,
+   * globe=구체 회전). 매 pointermove 마다 직전 대비 클라이언트 px 델타를 넘긴다.
+   * 휠 줌은 그대로 viewBox 스케일로 동작. 콜백 쪽에서 px→경위도로 환산·재투영한다.
+   */
+  onRotate?: (dxPx: number, dyPx: number) => void;
+  /** 회전 드래그가 끝났을 때(pointerup/cancel) 1회 호출 — 고품질 스냅 재렌더용. */
+  onRotateEnd?: () => void;
 }
 
 export function attachZoomPan(
@@ -38,6 +46,9 @@ export function attachZoomPan(
 ): ZoomPanController {
   const maxZoom = opts.maxZoom ?? 12;
   const interactive = opts.interactive ?? true;
+  const onRotate = opts.onRotate;
+  const onRotateEnd = opts.onRotateEnd;
+  let rotatedThisDrag = false;
   const aspect = base[3] / base[2];
   const outer = opts.outerBounds ?? base;
   const minW = base[2] / maxZoom;
@@ -78,6 +89,18 @@ export function attachZoomPan(
   };
   const onPointerMove = (e: PointerEvent) => {
     if (!dragging) return;
+    // 회전 모드 — 드래그를 회전 콜백으로(viewBox 이동 안 함). 줌은 휠이 담당.
+    if (onRotate) {
+      const dx = e.clientX - lastX;
+      const dy = e.clientY - lastY;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      if (dx !== 0 || dy !== 0) {
+        rotatedThisDrag = true;
+        onRotate(dx, dy);
+      }
+      return;
+    }
     const rect = svg.getBoundingClientRect();
     if (rect.width === 0) return;
     const scaleX = view[2] / rect.width;
@@ -92,6 +115,10 @@ export function attachZoomPan(
     dragging = false;
     svg.releasePointerCapture?.(e.pointerId);
     svg.style.cursor = interactive ? 'grab' : '';
+    if (rotatedThisDrag) {
+      rotatedThisDrag = false;
+      onRotateEnd?.();
+    }
   };
 
   // ── 줌 ──
