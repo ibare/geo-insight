@@ -77,6 +77,11 @@ describe('ADM1 렌더 통합', () => {
     expect(auto).toBeTruthy();
     // 강조 엔티티가 캔버스보다 위(z 큼).
     expect(cali.z).toBeGreaterThan(auto!.z);
+    // 기본 UX: 선택한 California 만 라벨, 미선택 캔버스 ADM1 은 라벨 없음.
+    expect(cali.style.label).toBe(true);
+    expect(auto!.style.label).toBe(false);
+    // 라벨 개수 = 선택한 ADM1 1개(미선택 50개 안팎은 라벨 미표시).
+    expect((svg.match(/class="gi-label"/g) ?? []).length).toBe(1);
   });
 
   it('showOnly — ADM1 미로드 시 국가(ADM0) 실루엣으로 폴백', () => {

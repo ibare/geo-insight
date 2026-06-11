@@ -274,8 +274,7 @@ export function buildScene(ast: Ast, opts: BuildOptions): BuiltScene {
       ent.z = -100000 + i;
       ent.centroid = centroidOf(ent.features);
       ent.bbox = boundsOf(ent.features);
-      // 본토 프레임 밖(예: 알래스카/하와이)은 라벨 생략 — 가장자리로 클램프되는 것 방지.
-      if (clusterBbox && !pointInBbox(ent.centroid, clusterBbox, 0.15)) ent.style.label = false;
+      // 미선택 캔버스 ADM1 은 canvasStyle 에서 이미 label=false(선택한 것만 라벨 UX).
       return;
     }
     const explicit = explicitStyleProps.has(ent.key);
@@ -423,30 +422,23 @@ function neutralStyle(theme: Theme): ResolvedStyle {
   return { fill: theme.worldFaint, stroke: theme.worldStroke, borders: true, label: true, opacity: 1 };
 }
 
-/** showOnly 격리 모드의 미선택 행정구역 면(중립 패널 + 또렷한 경계). */
+/**
+ * showOnly 격리 모드의 미선택 행정구역 면(중립 패널 + 또렷한 경계).
+ * label=false — 기본 UX(선택한 지역만 라벨)에 맞춰 미선택 ADM1 은 이름 미표시.
+ * 선택(show)된 ADM1 은 autoKeys 가 아니라 일반 엔티티 경로로 가므로 라벨이 붙는다.
+ */
 function canvasStyle(theme: Theme): ResolvedStyle {
   return {
     fill: theme.subdivision.canvasFill,
     stroke: theme.subdivision.canvasStroke,
     borders: true,
-    label: true,
+    label: false,
     opacity: 1,
   };
 }
 
 function compact<T>(arr: (T | undefined)[]): T[] {
   return arr.filter((x): x is T => x != null);
-}
-
-/** 점이 bbox[w,s,e,n] 안(margin 비율만큼 확장)에 있는지. */
-function pointInBbox(
-  [lon, lat]: [number, number],
-  [w, s, e, n]: [number, number, number, number],
-  margin: number,
-): boolean {
-  const mx = (e - w) * margin;
-  const my = (n - s) * margin;
-  return lon >= w - mx && lon <= e + mx && lat >= s - my && lat <= n + my;
 }
 
 /** feature 집합의 행정 레벨 (가장 큰 값). 국가=0, ADM1=1, ADM2=2. */
