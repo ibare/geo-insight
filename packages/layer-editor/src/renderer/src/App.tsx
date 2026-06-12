@@ -22,6 +22,8 @@ export function App(): JSX.Element {
   const [dirty, setDirty] = useState(false);
   const [tool, setTool] = useState<Tool>('select');
   const [draft, setDraft] = useState<[number, number][]>([]);
+  const [creating, setCreating] = useState(false);
+  const [nl, setNl] = useState({ name: '', file: '', kind: 'flow' });
 
   // loadLayer/키 핸들러 클로저가 최신 상태를 보도록 ref 미러.
   const fcRef = useRef<FC | null>(fc);
@@ -146,6 +148,17 @@ export function App(): JSX.Element {
     setDirty(false);
   };
 
+  const createLayer = async (): Promise<void> => {
+    const name = nl.name.trim();
+    const file = nl.file.trim();
+    if (!name || !file) return;
+    const idx = await window.geoApi.create(name, file, nl.kind.trim() || 'flow');
+    setIndex(idx);
+    setCreating(false);
+    setNl({ name: '', file: '', kind: 'flow' });
+    void openLayer(name);
+  };
+
   const onCanvasClick = (e: MouseEvent): void => {
     if (!inst.current || !fc || !editing) return;
     const ll = inst.current.unproject(e.clientX, e.clientY);
@@ -216,6 +229,25 @@ export function App(): JSX.Element {
               </li>
             ))}
           </ul>
+          {creating ? (
+            <div className="new-layer">
+              <input placeholder="이름 (예: 화산)" value={nl.name} onChange={(e) => setNl({ ...nl, name: e.target.value })} />
+              <input placeholder="파일 (예: volcanoes)" value={nl.file} onChange={(e) => setNl({ ...nl, file: e.target.value })} />
+              <input placeholder="종류 (flow/point/area)" value={nl.kind} onChange={(e) => setNl({ ...nl, kind: e.target.value })} />
+              <div className="nl-actions">
+                <button className="nl-ok" onClick={() => void createLayer()} disabled={!nl.name.trim() || !nl.file.trim()}>
+                  생성
+                </button>
+                <button className="nl-cancel" onClick={() => setCreating(false)}>
+                  취소
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button className="add-layer" onClick={() => setCreating(true)}>
+              + 새 레이어
+            </button>
+          )}
         </aside>
 
         <main className={`canvas${tool !== 'select' ? ' drawing' : ''}`} onClick={onCanvasClick}>

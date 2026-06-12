@@ -161,6 +161,67 @@ h2 {
   font-size: 13px;
 }
 
+/* 새 레이어 */
+.add-layer {
+  width: 100%;
+  margin-top: 10px;
+  background: var(--panel2);
+  color: var(--text);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.add-layer:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.new-layer {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.new-layer input {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  outline: none;
+}
+.new-layer input:focus {
+  border-color: var(--accent);
+}
+.nl-actions {
+  display: flex;
+  gap: 6px;
+}
+.nl-actions button {
+  flex: 1;
+  border: none;
+  border-radius: 6px;
+  padding: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.nl-ok {
+  background: var(--accent);
+  color: #07121a;
+}
+.nl-ok:disabled {
+  background: var(--panel2);
+  color: var(--muted);
+  cursor: default;
+}
+.nl-cancel {
+  background: var(--panel2);
+  color: var(--text);
+}
+
 /* 캔버스 */
 .canvas {
   position: relative;

@@ -31,6 +31,25 @@ ipcMain.handle('layers:write', (_e, file: string, data: unknown) => {
   return true;
 });
 
+/** 새 레이어 등록 — index.json 에 추가하고 빈 FeatureCollection 파일을 만든다. */
+ipcMain.handle('layers:create', (_e, name: string, file: string, kind: string) => {
+  const dir = layersDir();
+  const idxPath = join(dir, 'index.json');
+  const idx: Record<string, { file: string; kind: string }> = existsSync(idxPath)
+    ? JSON.parse(readFileSync(idxPath, 'utf8'))
+    : {};
+  if (!idx[name]) {
+    idx[name] = { file, kind };
+    writeFileSync(idxPath, `${JSON.stringify(idx, null, 2)}\n`, 'utf8');
+  }
+  const fp = join(dir, `${file}.json`);
+  if (!existsSync(fp)) {
+    const fc = { type: 'FeatureCollection', layer: file, features: [] };
+    writeFileSync(fp, `${JSON.stringify(fc, null, 2)}\n`, 'utf8');
+  }
+  return idx;
+});
+
 function createWindow(): void {
   const win = new BrowserWindow({
     width: 1440,
