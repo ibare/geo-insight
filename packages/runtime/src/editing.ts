@@ -108,7 +108,9 @@ export function attachEditing(params: EditingParams): EditingController {
     toolbar.classList.toggle('expanded', expanded);
     if (expanded && !outsideChipsHandler) {
       outsideChipsHandler = (e: PointerEvent) => {
-        if (!toolbar.contains(e.target as Node)) setChipsExpanded(false);
+        // 칩 본체 + 함께 열리는 레이어 패널 클릭은 '안쪽'으로 본다(패널 클릭에 접히지 않게).
+        const t = e.target as Element | null;
+        if (!toolbar.contains(t) && !t?.closest?.('.gi-edit-layers')) setChipsExpanded(false);
       };
       window.addEventListener('pointerdown', outsideChipsHandler);
     } else if (!expanded && outsideChipsHandler) {
