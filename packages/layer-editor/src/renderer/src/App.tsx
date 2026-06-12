@@ -240,7 +240,7 @@ export function App(): JSX.Element {
           </ToolItem>
         </ToggleGroup.Root>
         <div className="bar-right">
-          <button className="ghost-btn" onClick={() => void revert()} disabled={pending.length === 0}>
+          <button className="ghost-btn" onClick={() => void revert()}>
             시드 교체
           </button>
           <button className="publish-btn" onClick={() => void publish()} disabled={pending.length === 0}>
