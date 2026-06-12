@@ -480,6 +480,29 @@ h2 {
 .row label {
   color: var(--muted);
 }
+/* kind 색 스와치 */
+.swatches {
+  display: flex;
+  gap: 8px;
+}
+.swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  outline: none;
+  transition: transform 0.1s;
+}
+.swatch:hover {
+  transform: scale(1.12);
+}
+.swatch.on {
+  border-color: var(--text);
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--text);
+}
+
 /* Radix Slider */
 .slider {
   position: relative;

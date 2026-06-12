@@ -4,7 +4,7 @@ import * as Tooltip from '@radix-ui/react-tooltip';
 import * as Slider from '@radix-ui/react-slider';
 import * as Switch from '@radix-ui/react-switch';
 import { mount, type GeoInstance } from '@geoinsight/runtime';
-import { cardinalSpline } from '@geoinsight/core';
+import { cardinalSpline, DEFAULT_THEME } from '@geoinsight/core';
 import type { LayerFeature } from '@geoinsight/data';
 import { Cursor, MapPin, FlowArrow, Polygon, FloppyDisk, Plus, UploadSimple, Trash } from '@phosphor-icons/react';
 
@@ -549,9 +549,9 @@ export function App(): JSX.Element {
                   <h2>속성</h2>
                   <Field label="이름(name)" value={String(sel.properties.name ?? '')} onChange={(v) => updateProp('name', v)} />
                   <Field label="한글(kor)" value={String(sel.properties.kor ?? '')} onChange={(v) => updateProp('kor', v)} />
-                  <Field label="종류(kind)" value={String(sel.properties.kind ?? '')} onChange={(v) => updateProp('kind', v)} />
                   {sel.properties.prim === 'flow' ? (
                     <>
+                      <KindSwatch value={String(sel.properties.kind ?? '')} onChange={(v) => updateProp('kind', v)} />
                       <SliderField
                         label="두께"
                         min={1}
@@ -573,6 +573,7 @@ export function App(): JSX.Element {
                     </>
                   ) : (
                     <>
+                      <Field label="종류(kind)" value={String(sel.properties.kind ?? '')} onChange={(v) => updateProp('kind', v)} />
                       <NumberField label="크기(size)" value={sel.properties.size} onChange={(v) => updateProp('size', v)} />
                       <NumberField label="값(value)" value={sel.properties.value} onChange={(v) => updateProp('value', v)} />
                     </>
@@ -695,6 +696,26 @@ function SliderField({
         <Slider.Thumb className="slider-thumb" aria-label={label} />
       </Slider.Root>
     </label>
+  );
+}
+
+function KindSwatch({ value, onChange }: { value: string; onChange: (v: string) => void }): JSX.Element {
+  return (
+    <div className="field">
+      <span>종류(kind) · {value || '미지정'}</span>
+      <div className="swatches">
+        {Object.entries(DEFAULT_THEME.layers).map(([k, color]) => (
+          <button
+            key={k}
+            type="button"
+            className={`swatch${value === k ? ' on' : ''}`}
+            title={k}
+            style={{ background: color }}
+            onClick={() => onChange(k)}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
 
