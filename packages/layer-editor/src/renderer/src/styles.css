@@ -65,6 +65,11 @@ body {
   opacity: 0.5;
   cursor: default;
 }
+.tool.on {
+  background: var(--accent);
+  color: #07121a;
+  border-color: var(--accent);
+}
 .save-btn {
   margin-left: auto;
   background: var(--accent);
@@ -161,6 +166,9 @@ h2 {
   position: relative;
   min-width: 0;
   background: #0b1018;
+}
+.canvas.drawing {
+  cursor: crosshair;
 }
 .map {
   width: 100%;

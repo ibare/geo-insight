@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { type MouseEvent, useEffect, useRef, useState } from 'react';
 import { mount, type GeoInstance } from '@geoinsight/runtime';
 import type { LayerFeature } from '@geoinsight/data';
 
@@ -17,7 +17,13 @@ export function App(): JSX.Element {
   const [fc, setFc] = useState<FC | null>(null);
   const [selIdx, setSelIdx] = useState<number | null>(null);
   const [dirty, setDirty] = useState(false);
-  const [saveVersion, setSaveVersion] = useState(0);
+  const [tool, setTool] = useState<'select' | 'point'>('select');
+
+  // loadLayer 클로저가 항상 최신 편집 데이터를 보도록 ref 미러.
+  const fcRef = useRef<FC | null>(fc);
+  fcRef.current = fc;
+  const editingRef = useRef<string | null>(editing);
+  editingRef.current = editing;
 
   // 레이어 목록(index.json) — main fs IPC.
   useEffect(() => {
@@ -29,14 +35,15 @@ export function App(): JSX.Element {
 
   const dsl = active.length > 0 ? `earth:\n  layers: ${active.join(', ')}` : 'earth:';
 
-  // 지도 — 활성 레이어 표시. loadLayer 는 디스크(geoApi.read)를 직접 읽어
-  // 저장(write) 후 saveVersion 증가 → 재마운트하면 최신 데이터가 반영된다(캐시 없음).
+  // 지도 — 활성 레이어 표시. 편집 중 레이어는 메모리(fcRef) 데이터로 실시간 미리보기,
+  // 나머지는 디스크(geoApi.read). fc 변경 시 재마운트해 편집 결과가 바로 반영된다.
   useEffect(() => {
     if (!mapRef.current) return;
     inst.current?.destroy();
     inst.current = mount(mapRef.current, dsl, {
       interactive: true,
       loadLayer: async (name) => {
+        if (name === editingRef.current && fcRef.current) return fcRef.current.features;
         const file = indexRef.current[name]?.file;
         if (!file) return [];
         const data = (await window.geoApi.read(file)) as FC | null;
@@ -47,7 +54,7 @@ export function App(): JSX.Element {
       inst.current?.destroy();
       inst.current = null;
     };
-  }, [dsl, saveVersion]);
+  }, [dsl, fc]);
 
   const openLayer = async (name: string): Promise<void> => {
     setEditing(name);
@@ -75,7 +82,24 @@ export function App(): JSX.Element {
     if (!file) return;
     await window.geoApi.write(file, fc);
     setDirty(false);
-    setSaveVersion((v) => v + 1); // 지도 재로드(디스크 최신 반영)
+  };
+
+  // 점 도구 — 캔버스 클릭 위치를 위경도로 바꿔 Point feature 추가.
+  const onCanvasClick = (e: MouseEvent): void => {
+    if (tool !== 'point' || !inst.current || !fc || !editing) return;
+    const ll = inst.current.unproject(e.clientX, e.clientY);
+    if (!ll) return;
+    const round = (n: number): number => Math.round(n * 1000) / 1000;
+    const feat: LayerFeature = {
+      type: 'Feature',
+      id: `${editing}-${fc.features.length + 1}`,
+      properties: { name: 'New point', kor: '새 점', kind: 'warm' },
+      geometry: { type: 'Point', coordinates: [round(ll[0]), round(ll[1])] },
+    };
+    const features = [...fc.features, feat];
+    setFc({ ...fc, features });
+    setSelIdx(features.length - 1);
+    setDirty(true);
   };
 
   const names = Object.keys(index);
@@ -88,7 +112,19 @@ export function App(): JSX.Element {
           GeoInsight <b>Layer Editor</b>
         </span>
         <div className="tools">
-          <button className="tool" disabled title="점 (준비 중)">
+          <button
+            className={`tool${tool === 'select' ? ' on' : ''}`}
+            title="선택"
+            onClick={() => setTool('select')}
+          >
+            ⬚
+          </button>
+          <button
+            className={`tool${tool === 'point' ? ' on' : ''}`}
+            title="점 찍기"
+            disabled={!editing}
+            onClick={() => setTool('point')}
+          >
             ●
           </button>
           <button className="tool" disabled title="선 (준비 중)">
@@ -122,7 +158,7 @@ export function App(): JSX.Element {
           </ul>
         </aside>
 
-        <main className="canvas">
+        <main className={`canvas${tool === 'point' ? ' drawing' : ''}`} onClick={onCanvasClick}>
           <div ref={mapRef} className="map" data-geoinsight-root="true" />
         </main>
 
