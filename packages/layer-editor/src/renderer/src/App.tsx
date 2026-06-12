@@ -97,7 +97,14 @@ export function App(): JSX.Element {
       inst.current?.destroy();
       inst.current = null;
     };
-  }, [dsl, fc, draft]);
+    // dsl(레이어 목록)이 바뀔 때만 remount. fc/draft 변경은 아래 effect 가 뷰 보존하며 갱신.
+  }, [dsl]);
+
+  // 데이터(fc)·draft 변경 — remount 없이 update(뷰/줌 보존). loadLayer 가 최신 ref 를 다시 읽음.
+  useEffect(() => {
+    inst.current?.update(dsl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fc, draft]);
 
   const addFeature = (geometry: LayerFeature['geometry'], kind: string, korBase: string): void => {
     if (!fc || !editing) return;

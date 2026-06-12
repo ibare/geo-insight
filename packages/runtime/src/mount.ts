@@ -407,7 +407,18 @@ export function mount(
   return {
     update(next) {
       if (typeof next === 'string') currentSource = next;
-      void ensureAndRender(next);
+      // 소스 갱신은 현재 뷰(카메라+줌/팬)를 보존 — 편집/레이어 갱신이 화면을 점프시키지
+      // 않게. 의도적 재프레이밍은 reset() 담당.
+      const preserve: Preserve | undefined =
+        controller && base
+          ? {
+              view: controller.getView(),
+              rotate: [rotate[0], rotate[1]],
+              scale: base.scale,
+              translate: [base.translate[0], base.translate[1]],
+            }
+          : undefined;
+      void ensureAndRender(next, preserve);
     },
     unproject(clientX, clientY) {
       if (!svg || !result || !controller) return null;
