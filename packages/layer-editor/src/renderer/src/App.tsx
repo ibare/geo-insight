@@ -1,6 +1,7 @@
-import { type MouseEvent, useEffect, useRef, useState } from 'react';
+import { type MouseEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { mount, type GeoInstance } from '@geoinsight/runtime';
 import type { LayerFeature } from '@geoinsight/data';
+import { Cursor, MapPin, LineSegments, Polygon, FloppyDisk, Plus } from '@phosphor-icons/react';
 
 type LayerIndex = Record<string, { file: string; kind: string }>;
 type FC = { type: string; features: LayerFeature[]; [k: string]: unknown };
@@ -184,10 +185,10 @@ export function App(): JSX.Element {
           GeoInsight <b>Layer Editor</b>
         </span>
         <div className="tools">
-          <ToolBtn icon="⬚" label="선택" on={tool === 'select'} onClick={() => setTool('select')} />
-          <ToolBtn icon="●" label="점" on={tool === 'point'} disabled={!editing} onClick={() => setTool('point')} />
+          <ToolBtn icon={<Cursor />} label="선택" on={tool === 'select'} onClick={() => setTool('select')} />
+          <ToolBtn icon={<MapPin />} label="점" on={tool === 'point'} disabled={!editing} onClick={() => setTool('point')} />
           <ToolBtn
-            icon="╱"
+            icon={<LineSegments />}
             label="선"
             on={tool === 'line'}
             disabled={!editing}
@@ -197,7 +198,7 @@ export function App(): JSX.Element {
             }}
           />
           <ToolBtn
-            icon="▱"
+            icon={<Polygon />}
             label="면"
             on={tool === 'area'}
             disabled={!editing}
@@ -208,6 +209,7 @@ export function App(): JSX.Element {
           />
         </div>
         <button className="save-btn" disabled={!dirty} onClick={() => void save()}>
+          <FloppyDisk weight="fill" size={15} />
           {dirty ? '저장 *' : '저장됨'}
         </button>
       </header>
@@ -245,7 +247,8 @@ export function App(): JSX.Element {
             </div>
           ) : (
             <button className="add-layer" onClick={() => setCreating(true)}>
-              + 새 레이어
+              <Plus weight="bold" size={14} />
+              새 레이어
             </button>
           )}
         </aside>
@@ -324,7 +327,7 @@ function ToolBtn({
   disabled,
   onClick,
 }: {
-  icon: string;
+  icon: ReactNode;
   label: string;
   on: boolean;
   disabled?: boolean;

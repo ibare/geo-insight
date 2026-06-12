@@ -14,6 +14,7 @@
     "@geoinsight/core": "workspace:*",
     "@geoinsight/data": "workspace:*",
     "@geoinsight/runtime": "workspace:*",
+    "@phosphor-icons/react": "^2.1.10",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
