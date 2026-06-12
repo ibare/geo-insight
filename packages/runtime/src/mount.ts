@@ -72,6 +72,11 @@ export interface GeoInstance {
    * globe 뒷면 등 투영 불가 시 null. 편집기 선택 하이라이트/정점 핸들용.
    */
   project(lon: number, lat: number): [number, number] | null;
+  /**
+   * 레이어 데이터를 직접 교체하고 뷰 보존 재렌더. loadLayer 지연로드 캐시를 우회해
+   * 편집 결과를 즉시 반영한다(편집기 전용). 줌/팬은 그대로 유지.
+   */
+  setLayerData(name: string, features: LayerFeature[]): void;
 }
 
 type Rotate = [number, number];
@@ -467,6 +472,16 @@ export function mount(
         offY = (rect.height - view[3] * scale) / 2;
       }
       return [(p[0] - view[0]) * scale + offX, (p[1] - view[1]) * scale + offY];
+    },
+    setLayerData(name, features) {
+      if (!result || !controller || !base) return;
+      dataSource.loadLayer(name, features); // replace
+      render(currentSource ?? '', {
+        view: controller.getView(),
+        rotate: [rotate[0], rotate[1]],
+        scale: base.scale,
+        translate: [base.translate[0], base.translate[1]],
+      });
     },
     zoomTo(entityKey) {
       if (!svg || !controller) return;

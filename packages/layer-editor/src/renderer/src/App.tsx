@@ -67,6 +67,21 @@ export function App(): JSX.Element {
 
   const dsl = active.length > 0 ? `earth:\n  layers: ${active.join(', ')}` : 'earth:';
 
+  // 편집 중 레이어의 표시 피처 = 메모리(fcRef) + 진행 중 draft. loadLayer 와 setLayerData 가 공유.
+  const composeEditingFeatures = (): LayerFeature[] => {
+    const f = fcRef.current;
+    if (!f) return [];
+    const d = draftRef.current;
+    if (d.length === 0) return f.features;
+    const draftFeat: LayerFeature = {
+      type: 'Feature',
+      id: '__draft__',
+      properties: { name: 'draft', kor: '', kind: toolRef.current === 'area' ? 'cold' : 'warm' },
+      geometry: d.length >= 2 ? { type: 'LineString', coordinates: d } : { type: 'Point', coordinates: d[0]! },
+    };
+    return [...f.features, draftFeat];
+  };
+
   // 지도 — 편집 중 레이어는 메모리(fcRef)+진행 중 draft 로 실시간 미리보기.
   useEffect(() => {
     if (!mapRef.current) return;
@@ -74,19 +89,7 @@ export function App(): JSX.Element {
     inst.current = mount(mapRef.current, dsl, {
       interactive: true,
       loadLayer: async (name) => {
-        if (name === editingRef.current && fcRef.current) {
-          const base = fcRef.current.features;
-          const d = draftRef.current;
-          if (d.length === 0) return base;
-          const draftFeat: LayerFeature = {
-            type: 'Feature',
-            id: '__draft__',
-            properties: { name: 'draft', kor: '', kind: toolRef.current === 'area' ? 'cold' : 'warm' },
-            geometry:
-              d.length >= 2 ? { type: 'LineString', coordinates: d } : { type: 'Point', coordinates: d[0]! },
-          };
-          return [...base, draftFeat];
-        }
+        if (name === editingRef.current && fcRef.current) return composeEditingFeatures();
         const file = indexRef.current[name]?.file;
         if (!file) return [];
         const data = (await window.geoApi.read(file)) as FC | null;
@@ -100,9 +103,10 @@ export function App(): JSX.Element {
     // dsl(레이어 목록)이 바뀔 때만 remount. fc/draft 변경은 아래 effect 가 뷰 보존하며 갱신.
   }, [dsl]);
 
-  // 데이터(fc)·draft 변경 — remount 없이 update(뷰/줌 보존). loadLayer 가 최신 ref 를 다시 읽음.
+  // 데이터(fc)·draft 변경 — remount 없이 레이어 데이터만 교체(뷰/줌 보존, 캐시 우회).
   useEffect(() => {
-    inst.current?.update(dsl);
+    const ed = editingRef.current;
+    if (ed) inst.current?.setLayerData(ed, composeEditingFeatures());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fc, draft]);
 
