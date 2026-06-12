@@ -1,14 +1,16 @@
 import { type MouseEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import * as ToggleGroup from '@radix-ui/react-toggle-group';
 import * as Tooltip from '@radix-ui/react-tooltip';
+import * as Slider from '@radix-ui/react-slider';
+import * as Switch from '@radix-ui/react-switch';
 import { mount, type GeoInstance } from '@geoinsight/runtime';
 import { cardinalSpline } from '@geoinsight/core';
 import type { LayerFeature } from '@geoinsight/data';
-import { Cursor, MapPin, LineSegments, Polygon, FloppyDisk, Plus, UploadSimple, Trash } from '@phosphor-icons/react';
+import { Cursor, MapPin, FlowArrow, Polygon, FloppyDisk, Plus, UploadSimple, Trash } from '@phosphor-icons/react';
 
 type LayerIndex = Record<string, { file: string; kind: string }>;
 type FC = { type: string; features: LayerFeature[]; [k: string]: unknown };
-type Tool = 'select' | 'point' | 'line' | 'area';
+type Tool = 'select' | 'point' | 'flow' | 'area';
 
 const round = (n: number): number => Math.round(n * 1000) / 1000;
 
@@ -73,10 +75,17 @@ export function App(): JSX.Element {
     if (!f) return [];
     const d = draftRef.current;
     if (d.length === 0) return f.features;
+    const isFlow = toolRef.current === 'flow';
     const draftFeat: LayerFeature = {
       type: 'Feature',
       id: '__draft__',
-      properties: { name: 'draft', kor: '', kind: toolRef.current === 'area' ? 'cold' : 'warm' },
+      properties: {
+        name: 'draft',
+        kor: '',
+        kind: toolRef.current === 'area' ? 'cold' : 'warm',
+        // 흐름 draft 는 prim:'flow' 로 그려 생성 중에도 곡선 미리보기(3점부터 곡선).
+        ...(isFlow ? { prim: 'flow' as const, width: 8 } : {}),
+      },
       geometry: d.length >= 2 ? { type: 'LineString', coordinates: d } : { type: 'Point', coordinates: d[0]! },
     };
     return [...f.features, draftFeat];
@@ -110,13 +119,18 @@ export function App(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fc, draft]);
 
-  const addFeature = (geometry: LayerFeature['geometry'], kind: string, korBase: string): void => {
+  const addFeature = (
+    geometry: LayerFeature['geometry'],
+    kind: string,
+    korBase: string,
+    extra: Partial<LayerFeature['properties']> = {},
+  ): void => {
     if (!fc || !editing) return;
     const id = `${editing}-${fc.features.length + 1}`;
     const feat: LayerFeature = {
       type: 'Feature',
       id,
-      properties: { name: `New ${korBase}`, kor: `새 ${korBase}`, kind },
+      properties: { name: `New ${korBase}`, kor: `새 ${korBase}`, kind, ...extra },
       geometry,
     };
     setFc({ ...fc, features: [...fc.features, feat] });
@@ -126,8 +140,9 @@ export function App(): JSX.Element {
 
   const finishDraft = (): void => {
     const d = draftRef.current;
-    if (toolRef.current === 'line' && d.length >= 2) {
-      addFeature({ type: 'LineString', coordinates: d }, 'warm', '선');
+    if (toolRef.current === 'flow' && d.length >= 3) {
+      // 흐름 프리미티브 — 제어점 중심선 + 기본 표현 파라미터.
+      addFeature({ type: 'LineString', coordinates: d }, 'warm', '흐름', { prim: 'flow', width: 8, arrow: true });
     } else if (toolRef.current === 'area' && d.length >= 3) {
       addFeature({ type: 'Polygon', coordinates: [[...d, d[0]!]] }, 'cold', '면');
     }
@@ -338,15 +353,15 @@ export function App(): JSX.Element {
     if (tool === 'point') {
       addFeature({ type: 'Point', coordinates: pt }, 'warm', '점');
       setTool('select');
-    } else if (tool === 'line' || tool === 'area') {
+    } else if (tool === 'flow' || tool === 'area') {
       setDraft((d) => [...d, pt]);
     }
   };
 
   const names = Object.keys(index);
   const sel = selIdx != null && fc ? fc.features[selIdx] : null;
-  const drawing = tool === 'line' || tool === 'area';
-  const canFinish = tool === 'area' ? draft.length >= 3 : draft.length >= 2;
+  const drawing = tool === 'flow' || tool === 'area';
+  const canFinish = draft.length >= 3; // 흐름·면 모두 최소 3점
 
   return (
     <div className="app">
@@ -370,8 +385,8 @@ export function App(): JSX.Element {
           <ToolItem value="point" label="점" disabled={!editing}>
             <MapPin />
           </ToolItem>
-          <ToolItem value="line" label="선" disabled={!editing}>
-            <LineSegments />
+          <ToolItem value="flow" label="흐름" disabled={!editing}>
+            <FlowArrow />
           </ToolItem>
           <ToolItem value="area" label="면" disabled={!editing}>
             <Polygon />
@@ -451,7 +466,7 @@ export function App(): JSX.Element {
           {drawing && (
             <div className="draft-bar" onClick={(e) => e.stopPropagation()}>
               <span>
-                {tool === 'line' ? '선' : '면'} · {draft.length}점
+                {tool === 'flow' ? '흐름' : '면'} · {draft.length}점{draft.length < 3 ? ' (최소 3점)' : ''}
               </span>
               <button className="db-ok" onClick={finishDraft} disabled={!canFinish}>
                 완료 (Enter)
@@ -497,11 +512,35 @@ export function App(): JSX.Element {
                   <Field label="이름(name)" value={String(sel.properties.name ?? '')} onChange={(v) => updateProp('name', v)} />
                   <Field label="한글(kor)" value={String(sel.properties.kor ?? '')} onChange={(v) => updateProp('kor', v)} />
                   <Field label="종류(kind)" value={String(sel.properties.kind ?? '')} onChange={(v) => updateProp('kind', v)} />
-                  <NumberField label="크기(size)" value={sel.properties.size} onChange={(v) => updateProp('size', v)} />
-                  <NumberField label="값(value)" value={sel.properties.value} onChange={(v) => updateProp('value', v)} />
+                  {sel.properties.prim === 'flow' ? (
+                    <>
+                      <SliderField
+                        label="두께"
+                        min={1}
+                        max={24}
+                        value={Number(sel.properties.width ?? 8)}
+                        onChange={(v) => updateProp('width', v)}
+                      />
+                      <SwitchField
+                        label="화살촉"
+                        checked={sel.properties.arrow !== false}
+                        onChange={(v) => updateProp('arrow', v)}
+                      />
+                      <SwitchField
+                        label="점선"
+                        checked={sel.properties.dash === true}
+                        onChange={(v) => updateProp('dash', v)}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <NumberField label="크기(size)" value={sel.properties.size} onChange={(v) => updateProp('size', v)} />
+                      <NumberField label="값(value)" value={sel.properties.value} onChange={(v) => updateProp('value', v)} />
+                    </>
+                  )}
                   <div className="row">
                     <label>형태</label>
-                    <span>{sel.geometry.type}</span>
+                    <span>{sel.properties.prim === 'flow' ? '흐름' : sel.geometry.type}</span>
                   </div>
                   <button className="delete-btn" onClick={() => selIdx != null && deleteFeature(selIdx)}>
                     <Trash size={15} />
@@ -580,6 +619,62 @@ function NumberField({
         onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))}
       />
     </label>
+  );
+}
+
+function SliderField({
+  label,
+  min,
+  max,
+  step = 1,
+  value,
+  onChange,
+}: {
+  label: string;
+  min: number;
+  max: number;
+  step?: number;
+  value: number;
+  onChange: (v: number) => void;
+}): JSX.Element {
+  return (
+    <label className="field">
+      <span>
+        {label} · {value}
+      </span>
+      <Slider.Root
+        className="slider"
+        min={min}
+        max={max}
+        step={step}
+        value={[value]}
+        onValueChange={([v]) => onChange(v!)}
+      >
+        <Slider.Track className="slider-track">
+          <Slider.Range className="slider-range" />
+        </Slider.Track>
+        <Slider.Thumb className="slider-thumb" aria-label={label} />
+      </Slider.Root>
+    </label>
+  );
+}
+
+function SwitchField({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}): JSX.Element {
+  return (
+    <div className="switch-row">
+      <span>{label}</span>
+      <Switch.Root className="switch" checked={checked} onCheckedChange={onChange}>
+        <Switch.Thumb className="switch-thumb" />
+      </Switch.Root>
+    </div>
   );
 }
 
