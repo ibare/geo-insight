@@ -71,10 +71,26 @@ body {
   opacity: 0.5;
   cursor: default;
 }
-.tool.on {
+.tool[data-state='on'] {
   background: var(--accent);
   color: #07121a;
   border-color: var(--accent);
+}
+
+/* Radix Tooltip */
+.tip {
+  background: var(--panel2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  user-select: none;
+  z-index: 50;
+}
+.tip-arrow {
+  fill: var(--panel2);
 }
 .save-btn {
   display: flex;

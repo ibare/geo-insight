@@ -1,4 +1,6 @@
 import { type MouseEvent, type ReactNode, useEffect, useRef, useState } from 'react';
+import * as ToggleGroup from '@radix-ui/react-toggle-group';
+import * as Tooltip from '@radix-ui/react-tooltip';
 import { mount, type GeoInstance } from '@geoinsight/runtime';
 import type { LayerFeature } from '@geoinsight/data';
 import { Cursor, MapPin, LineSegments, Polygon, FloppyDisk, Plus } from '@phosphor-icons/react';
@@ -184,30 +186,29 @@ export function App(): JSX.Element {
         <span className="brand">
           GeoInsight <b>Layer Editor</b>
         </span>
-        <div className="tools">
-          <ToolBtn icon={<Cursor />} label="선택" on={tool === 'select'} onClick={() => setTool('select')} />
-          <ToolBtn icon={<MapPin />} label="점" on={tool === 'point'} disabled={!editing} onClick={() => setTool('point')} />
-          <ToolBtn
-            icon={<LineSegments />}
-            label="선"
-            on={tool === 'line'}
-            disabled={!editing}
-            onClick={() => {
-              setDraft([]);
-              setTool('line');
-            }}
-          />
-          <ToolBtn
-            icon={<Polygon />}
-            label="면"
-            on={tool === 'area'}
-            disabled={!editing}
-            onClick={() => {
-              setDraft([]);
-              setTool('area');
-            }}
-          />
-        </div>
+        <ToggleGroup.Root
+          className="tools"
+          type="single"
+          value={tool}
+          onValueChange={(v) => {
+            if (!v) return;
+            setDraft([]);
+            setTool(v as Tool);
+          }}
+        >
+          <ToolItem value="select" label="선택">
+            <Cursor />
+          </ToolItem>
+          <ToolItem value="point" label="점" disabled={!editing}>
+            <MapPin />
+          </ToolItem>
+          <ToolItem value="line" label="선" disabled={!editing}>
+            <LineSegments />
+          </ToolItem>
+          <ToolItem value="area" label="면" disabled={!editing}>
+            <Polygon />
+          </ToolItem>
+        </ToggleGroup.Root>
         <button className="save-btn" disabled={!dirty} onClick={() => void save()}>
           <FloppyDisk weight="fill" size={15} />
           {dirty ? '저장 *' : '저장됨'}
@@ -320,23 +321,31 @@ export function App(): JSX.Element {
   );
 }
 
-function ToolBtn({
-  icon,
+function ToolItem({
+  value,
   label,
-  on,
   disabled,
-  onClick,
+  children,
 }: {
-  icon: ReactNode;
+  value: string;
   label: string;
-  on: boolean;
   disabled?: boolean;
-  onClick: () => void;
+  children: ReactNode;
 }): JSX.Element {
   return (
-    <button className={`tool${on ? ' on' : ''}`} title={label} disabled={disabled} onClick={onClick}>
-      {icon}
-    </button>
+    <Tooltip.Root>
+      <Tooltip.Trigger asChild>
+        <ToggleGroup.Item className="tool" value={value} disabled={disabled} aria-label={label}>
+          {children}
+        </ToggleGroup.Item>
+      </Tooltip.Trigger>
+      <Tooltip.Portal>
+        <Tooltip.Content className="tip" sideOffset={6}>
+          {label}
+          <Tooltip.Arrow className="tip-arrow" />
+        </Tooltip.Content>
+      </Tooltip.Portal>
+    </Tooltip.Root>
   );
 }
 
