@@ -6,109 +6,433 @@
     {
       "type": "Feature",
       "id": "current:gulf-stream",
-      "properties": { "name": "Gulf Stream", "kor": "멕시코 만류", "kind": "warm" },
+      "properties": {
+        "name": "Gulf Stream",
+        "kor": "멕시코 만류",
+        "kind": "warm",
+        "prim": "flow"
+      },
       "geometry": {
         "type": "LineString",
-        "coordinates": [[-80.4, 25.5], [-79.5, 30], [-75, 33], [-68, 38], [-58, 42], [-45, 47], [-30, 50], [-15, 56], [-2, 60]]
+        "coordinates": [
+          [
+            -80.4,
+            25.5
+          ],
+          [
+            -79.5,
+            30
+          ],
+          [
+            -75,
+            33
+          ],
+          [
+            -68,
+            38
+          ],
+          [
+            -58,
+            42
+          ],
+          [
+            -45,
+            47
+          ],
+          [
+            -30,
+            50
+          ],
+          [
+            -15,
+            56
+          ],
+          [
+            -2,
+            60
+          ]
+        ]
       }
     },
     {
       "type": "Feature",
       "id": "current:kuroshio",
-      "properties": { "name": "Kuroshio", "kor": "쿠로시오 해류", "kind": "warm" },
+      "properties": {
+        "name": "Kuroshio",
+        "kor": "쿠로시오 해류",
+        "kind": "warm",
+        "prim": "flow"
+      },
       "geometry": {
         "type": "LineString",
-        "coordinates": [[122, 22], [127, 26], [132, 31], [138, 34], [143, 37], [150, 39], [160, 40]]
+        "coordinates": [
+          [
+            122,
+            22
+          ],
+          [
+            127,
+            26
+          ],
+          [
+            132,
+            31
+          ],
+          [
+            138,
+            34
+          ],
+          [
+            143,
+            37
+          ],
+          [
+            150,
+            39
+          ],
+          [
+            160,
+            40
+          ]
+        ]
       }
     },
     {
       "type": "Feature",
       "id": "current:brazil",
-      "properties": { "name": "Brazil Current", "kor": "브라질 해류", "kind": "warm" },
+      "properties": {
+        "name": "Brazil Current",
+        "kor": "브라질 해류",
+        "kind": "warm",
+        "prim": "flow"
+      },
       "geometry": {
         "type": "LineString",
-        "coordinates": [[-38, -10], [-42, -18], [-47, -26], [-52, -34], [-55, -40]]
+        "coordinates": [
+          [
+            -38,
+            -10
+          ],
+          [
+            -42,
+            -18
+          ],
+          [
+            -47,
+            -26
+          ],
+          [
+            -52,
+            -34
+          ],
+          [
+            -55,
+            -40
+          ]
+        ]
       }
     },
     {
       "type": "Feature",
       "id": "current:east-australian",
-      "properties": { "name": "East Australian Current", "kor": "동오스트레일리아 해류", "kind": "warm" },
+      "properties": {
+        "name": "East Australian Current",
+        "kor": "동오스트레일리아 해류",
+        "kind": "warm",
+        "prim": "flow"
+      },
       "geometry": {
         "type": "LineString",
-        "coordinates": [[154, -26], [153, -31], [151, -36], [149, -40]]
+        "coordinates": [
+          [
+            154,
+            -26
+          ],
+          [
+            153,
+            -31
+          ],
+          [
+            151,
+            -36
+          ],
+          [
+            149,
+            -40
+          ]
+        ]
       }
     },
     {
       "type": "Feature",
       "id": "current:agulhas",
-      "properties": { "name": "Agulhas Current", "kor": "아굴라스 해류", "kind": "warm" },
+      "properties": {
+        "name": "Agulhas Current",
+        "kor": "아굴라스 해류",
+        "kind": "warm",
+        "prim": "flow"
+      },
       "geometry": {
         "type": "LineString",
-        "coordinates": [[42, -18], [37, -26], [30, -33], [23, -37], [18, -38]]
+        "coordinates": [
+          [
+            42,
+            -18
+          ],
+          [
+            37,
+            -26
+          ],
+          [
+            30,
+            -33
+          ],
+          [
+            23,
+            -37
+          ],
+          [
+            18,
+            -38
+          ]
+        ]
       }
     },
     {
       "type": "Feature",
       "id": "current:north-atlantic-drift",
-      "properties": { "name": "North Atlantic Drift", "kor": "북대서양 해류", "kind": "warm" },
+      "properties": {
+        "name": "North Atlantic Drift",
+        "kor": "북대서양 해류",
+        "kind": "warm",
+        "prim": "flow"
+      },
       "geometry": {
         "type": "LineString",
-        "coordinates": [[-2, 60], [8, 63], [18, 67], [25, 70]]
+        "coordinates": [
+          [
+            -2,
+            60
+          ],
+          [
+            8,
+            63
+          ],
+          [
+            18,
+            67
+          ],
+          [
+            25,
+            70
+          ]
+        ]
       }
     },
     {
       "type": "Feature",
       "id": "current:california",
-      "properties": { "name": "California Current", "kor": "캘리포니아 해류", "kind": "cold" },
+      "properties": {
+        "name": "California Current",
+        "kor": "캘리포니아 해류",
+        "kind": "cold",
+        "prim": "flow"
+      },
       "geometry": {
         "type": "LineString",
-        "coordinates": [[-126, 46], [-124, 40], [-121, 34], [-117, 28], [-112, 23]]
+        "coordinates": [
+          [
+            -126,
+            46
+          ],
+          [
+            -124,
+            40
+          ],
+          [
+            -121,
+            34
+          ],
+          [
+            -117,
+            28
+          ],
+          [
+            -112,
+            23
+          ]
+        ]
       }
     },
     {
       "type": "Feature",
       "id": "current:humboldt",
-      "properties": { "name": "Humboldt Current", "kor": "훔볼트 해류", "kind": "cold" },
+      "properties": {
+        "name": "Humboldt Current",
+        "kor": "훔볼트 해류",
+        "kind": "cold",
+        "prim": "flow"
+      },
       "geometry": {
         "type": "LineString",
-        "coordinates": [[-74, -42], [-76, -32], [-79, -22], [-81, -12], [-82, -5]]
+        "coordinates": [
+          [
+            -74,
+            -42
+          ],
+          [
+            -76,
+            -32
+          ],
+          [
+            -79,
+            -22
+          ],
+          [
+            -81,
+            -12
+          ],
+          [
+            -82,
+            -5
+          ]
+        ]
       }
     },
     {
       "type": "Feature",
       "id": "current:canary",
-      "properties": { "name": "Canary Current", "kor": "카나리아 해류", "kind": "cold" },
+      "properties": {
+        "name": "Canary Current",
+        "kor": "카나리아 해류",
+        "kind": "cold",
+        "prim": "flow"
+      },
       "geometry": {
         "type": "LineString",
-        "coordinates": [[-10, 33], [-14, 27], [-17, 21], [-18, 15], [-18, 10]]
+        "coordinates": [
+          [
+            -10,
+            33
+          ],
+          [
+            -14,
+            27
+          ],
+          [
+            -17,
+            21
+          ],
+          [
+            -18,
+            15
+          ],
+          [
+            -18,
+            10
+          ]
+        ]
       }
     },
     {
       "type": "Feature",
       "id": "current:benguela",
-      "properties": { "name": "Benguela Current", "kor": "벵겔라 해류", "kind": "cold" },
+      "properties": {
+        "name": "Benguela Current",
+        "kor": "벵겔라 해류",
+        "kind": "cold",
+        "prim": "flow"
+      },
       "geometry": {
         "type": "LineString",
-        "coordinates": [[16, -34], [13, -27], [11, -20], [10, -14], [9, -9]]
+        "coordinates": [
+          [
+            16,
+            -34
+          ],
+          [
+            13,
+            -27
+          ],
+          [
+            11,
+            -20
+          ],
+          [
+            10,
+            -14
+          ],
+          [
+            9,
+            -9
+          ]
+        ]
       }
     },
     {
       "type": "Feature",
       "id": "current:oyashio",
-      "properties": { "name": "Oyashio Current", "kor": "오야시오 해류", "kind": "cold" },
+      "properties": {
+        "name": "Oyashio Current",
+        "kor": "오야시오 해류",
+        "kind": "cold",
+        "prim": "flow"
+      },
       "geometry": {
         "type": "LineString",
-        "coordinates": [[162, 54], [157, 48], [151, 43], [146, 41]]
+        "coordinates": [
+          [
+            162,
+            54
+          ],
+          [
+            157,
+            48
+          ],
+          [
+            151,
+            43
+          ],
+          [
+            146,
+            41
+          ]
+        ]
       }
     },
     {
       "type": "Feature",
       "id": "current:labrador",
-      "properties": { "name": "Labrador Current", "kor": "래브라도 해류", "kind": "cold" },
+      "properties": {
+        "name": "Labrador Current",
+        "kor": "래브라도 해류",
+        "kind": "cold",
+        "prim": "flow"
+      },
       "geometry": {
         "type": "LineString",
-        "coordinates": [[-54, 62], [-51, 55], [-49, 49], [-48, 44], [-50, 40]]
+        "coordinates": [
+          [
+            -54,
+            62
+          ],
+          [
+            -51,
+            55
+          ],
+          [
+            -49,
+            49
+          ],
+          [
+            -48,
+            44
+          ],
+          [
+            -50,
+            40
+          ]
+        ]
       }
     }
   ]

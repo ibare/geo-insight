@@ -10,6 +10,7 @@
  */
 
 import type { DataSource } from '@geoinsight/data';
+import { cardinalSpline, type FlowPt } from '../flow.js';
 import { graticule } from '../geometry.js';
 import type { Entity, Scene, Theme } from '../types.js';
 import type { Camera } from './camera.js';
@@ -105,7 +106,14 @@ export function emitGeometry(input: EmitInput): string {
         const geomType = f.geometry.type;
         // 점(Point)은 화면 일정 크기 마커라 emitAnnotations 에서 그린다 — 여기선 건너뜀.
         if (geomType === 'Point' || geomType === 'MultiPoint') continue;
-        const d = camera.path(f);
+        // 흐름 프리미티브 — 제어점(중심선)을 카디널 스플라인으로 보간한 뒤 투영.
+        const isFlow = f.properties.prim === 'flow' && geomType === 'LineString';
+        const d = isFlow
+          ? camera.path({
+              ...f,
+              geometry: { type: 'LineString', coordinates: cardinalSpline(f.geometry.coordinates as FlowPt[]) },
+            })
+          : camera.path(f);
         if (!d) continue;
         const kind = f.properties.kind ?? 'warm';
         const color = layerColor(theme, kind);
@@ -142,21 +150,24 @@ export function emitGeometry(input: EmitInput): string {
             stroke = `url(#${gid})`;
           }
         }
-        layerPaths.push(
-          path(d, {
-            class: `gi-layer gi-layer-${kind}`,
-            'data-layer': name,
-            'data-id': f.id,
-            fill: 'none',
-            stroke,
-            // 해류(대양의 굵은 흐름)는 두껍게, 바람은 가늘게.
-            'stroke-width': isCurrentKind(kind) ? '8' : '1.6',
-            // 끝은 butt — round 캡이 화살촉 뒤로 튀어나오는 "혹" 방지(화살촉이 덮음).
-            'stroke-linecap': 'butt',
-            'stroke-linejoin': 'round',
-            'vector-effect': 'non-scaling-stroke',
-          }),
-        );
+        // 두께: 흐름은 properties.width 우선(미지정 시 kind 기본값), 아니면 kind 기반.
+        const baseWidth = isCurrentKind(kind) ? 8 : 1.6;
+        const strokeWidth = isFlow ? (f.properties.width ?? baseWidth) : baseWidth;
+        const lineAttrs: Record<string, string> = {
+          class: `gi-layer gi-layer-${kind}`,
+          'data-layer': name,
+          'data-id': f.id,
+          fill: 'none',
+          stroke,
+          'stroke-width': String(strokeWidth),
+          // 끝은 butt — round 캡이 화살촉 뒤로 튀어나오는 "혹" 방지(화살촉이 덮음).
+          'stroke-linecap': 'butt',
+          'stroke-linejoin': 'round',
+          'vector-effect': 'non-scaling-stroke',
+        };
+        // 점선(추정 흐름 등) — 두께에 비례한 대시.
+        if (f.properties.dash) lineAttrs['stroke-dasharray'] = `${n2(strokeWidth * 1.2)} ${n2(strokeWidth)}`;
+        layerPaths.push(path(d, lineAttrs));
       }
     }
     if (layerDefs.length > 0) out.push(`<defs>\n${layerDefs.join('\n')}\n</defs>`);
@@ -238,13 +249,16 @@ export function emitAnnotations(input: EmitInput): string {
         const kind = f.properties.kind ?? 'warm';
         const color = layerColor(theme, kind);
         if (gt === 'LineString') {
-          const coords = f.geometry.coordinates;
+          const isFlow = f.properties.prim === 'flow';
+          // 흐름은 보간 곡선의 끝 접선을 써야 화살촉 방향이 곡선과 일치.
+          const coords = isFlow ? cardinalSpline(f.geometry.coordinates as FlowPt[]) : f.geometry.coordinates;
           if (coords.length < 2) continue;
-          // 화살촉 — 끝점, 마지막 세그먼트 방향. 굵은 해류는 화살촉도 크게.
-          const w = isCurrentKind(kind) ? 8 : 1.6;
+          // 화살촉 — 끝점, 마지막 세그먼트 방향. 굵은 해류는 화살촉도 크게. arrow:false 면 생략.
+          const baseW = isCurrentKind(kind) ? 8 : 1.6;
+          const w = isFlow ? (f.properties.width ?? baseW) : baseW;
           const b = coords[coords.length - 1]!;
           const a = coords[coords.length - 2]!;
-          if (camera.visible(b)) {
+          if (f.properties.arrow !== false && camera.visible(b)) {
             const pb = camera.project(b);
             const pa = camera.project(a);
             if (pb && pa) arrows.push(arrowHead(pa, pb, w * 2.4 * s, w * 1.35 * s, w * 0.5 * s, color));

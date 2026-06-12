@@ -14,6 +14,7 @@ export {
 } from './compile.js';
 export { parse } from './parser.js';
 export { registerExtProjection } from './projection.js';
+export { cardinalSpline, type FlowPt } from './flow.js';
 export { cameraFromMeta, type MetaCamera } from './passes/camera.js';
 export { emitContent, emitGeometry, emitAnnotations, type EmitInput } from './passes/emit.js';
 export { createLocator, type Locator, type LocatedCountry } from './locate.js';

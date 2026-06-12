@@ -70,6 +70,17 @@ export interface LayerFeature {
     size?: number;
     /** 정량 값 — 컬러스케일용(수심·기온 등, 추후 렌더). */
     value?: number;
+    /**
+     * 비주얼 프리미티브 종류. 'flow' = 흐름 화살표(geometry=중심선 제어점,
+     * 카디널 스플라인 보간). 의미는 kind 가, 표현은 아래 파라미터가 결정한다.
+     */
+    prim?: 'flow';
+    /** 흐름 두께(stroke-width). 미지정 시 kind 기반 기본값. */
+    width?: number;
+    /** 화살촉 표시 여부(흐름 끝). 기본 true. */
+    arrow?: boolean;
+    /** 점선 여부(예: 추정 흐름). 기본 false. */
+    dash?: boolean;
     [key: string]: unknown;
   };
   geometry: LayerGeometry;
