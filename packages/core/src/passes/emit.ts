@@ -98,25 +98,49 @@ export function emitGeometry(input: EmitInput): string {
 
     // 3.5 큐레이션 레이어(해류 등) — 바다/세계 위, 행정구역·엔티티 아래.
     //     난류/한류로 색을 가르고, 흐름선마다 개별 path. 격리 모드(바다 생략)는 제외.
+    const layerDefs: string[] = [];
+    const layerPaths: string[] = [];
     for (const name of scene.layers ?? []) {
       for (const f of dataSource.layer(name)) {
         const d = camera.path(f);
         if (!d) continue;
-        const warm = f.properties.kind === 'warm';
-        out.push(
+        const kind = f.properties.kind ?? 'warm';
+        const color = layerColor(theme, kind);
+        // 흐름 방향 그라데이션 — 시작(꼬리)은 투명, 끝(화살표)은 진함. 축은 시작점→끝점 투영.
+        let stroke = color;
+        if (f.geometry.type === 'LineString' && f.geometry.coordinates.length >= 2) {
+          const c = f.geometry.coordinates;
+          const p0 = camera.project(c[0]!);
+          const pN = camera.project(c[c.length - 1]!);
+          if (p0 && pN) {
+            const gid = `gilg-${f.id.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+            layerDefs.push(
+              `<linearGradient id="${gid}" gradientUnits="userSpaceOnUse" x1="${n2(p0[0])}" y1="${n2(p0[1])}" x2="${n2(pN[0])}" y2="${n2(pN[1])}">` +
+                `<stop offset="0" stop-color="${color}" stop-opacity="0.04"/>` +
+                `<stop offset="1" stop-color="${color}" stop-opacity="1"/></linearGradient>`,
+            );
+            stroke = `url(#${gid})`;
+          }
+        }
+        layerPaths.push(
           path(d, {
-            class: `gi-layer gi-layer-${warm ? 'warm' : 'cold'}`,
+            class: `gi-layer gi-layer-${kind}`,
             'data-layer': name,
             'data-id': f.id,
             fill: 'none',
-            stroke: warm ? theme.layers.warm : theme.layers.cold,
-            'stroke-width': '1.6',
-            'stroke-linecap': 'round',
+            stroke,
+            // 해류(대양의 굵은 흐름)는 두껍게, 바람은 가늘게.
+            'stroke-width': isCurrentKind(kind) ? '8' : '1.6',
+            // 끝은 butt — round 캡이 화살촉 뒤로 튀어나오는 "혹" 방지(화살촉이 덮음).
+            'stroke-linecap': 'butt',
+            'stroke-linejoin': 'round',
             'vector-effect': 'non-scaling-stroke',
           }),
         );
       }
     }
+    if (layerDefs.length > 0) out.push(`<defs>\n${layerDefs.join('\n')}\n</defs>`);
+    out.push(...layerPaths);
   }
 
   // 3.6 행정구역 맥락 — ADM1 이 표시된 국가의 전체 주/도 경계를 옅게 깔아
@@ -181,33 +205,50 @@ export function emitAnnotations(input: EmitInput): string {
     out.push('</g>');
   }
 
-  // 레이어 라벨(해류 이름) — 흐름선 중간점, 화면 일정 크기. 격리 모드 제외, globe 뒷면 컬링.
+  // 레이어 주석(해류/바람) — 흐름선 끝 화살촉(진행 방향) + 중간점 한국어 라벨.
+  // 화면 일정 크기(annotationScale), 격리 모드 제외, globe 뒷면 컬링.
   if (!isolated && (scene.layers?.length ?? 0) > 0) {
     const halo = n2(2.5 * s);
-    const items: string[] = [];
+    const arrows: string[] = [];
+    const labels: string[] = [];
     for (const name of scene.layers!) {
       for (const f of dataSource.layer(name)) {
         if (f.geometry.type !== 'LineString') continue;
         const coords = f.geometry.coordinates;
-        if (coords.length === 0) continue;
+        if (coords.length < 2) continue;
+        const kind = f.properties.kind ?? 'warm';
+        const color = layerColor(theme, kind);
+        // 화살촉 — 끝점에, 마지막 세그먼트 방향(흐름 진행 방향). 굵은 해류는 화살촉도 크게.
+        const w = isCurrentKind(kind) ? 8 : 1.6; // 흐름선 두께(emitGeometry 와 일치)
+        const b = coords[coords.length - 1]!;
+        const a = coords[coords.length - 2]!;
+        if (camera.visible(b)) {
+          const pb = camera.project(b);
+          const pa = camera.project(a);
+          // 화살촉 치수를 선폭에 비례 — 길이 2.4w, 반폭 1.35w, 끝 캡 덮기 0.5w 연장.
+          if (pb && pa) arrows.push(arrowHead(pa, pb, w * 2.4 * s, w * 1.35 * s, w * 0.5 * s, color));
+        }
+        // 라벨 — 중간점 한국어 이름.
         const mid = coords[Math.floor(coords.length / 2)]!;
-        if (!camera.visible(mid)) continue;
-        const p = camera.project(mid);
-        if (!p) continue;
-        const color = f.properties.kind === 'warm' ? theme.layers.warm : theme.layers.cold;
-        const common = `x="${n2(p[0])}" y="${n2(p[1])}"`;
-        items.push(
-          `<text ${common} class="gi-layer-label-halo" fill="none" stroke="${theme.label.halo}" stroke-width="${halo}" stroke-linejoin="round">${escapeText(f.properties.kor)}</text>`,
-        );
-        items.push(`<text ${common} class="gi-layer-label" fill="${color}">${escapeText(f.properties.kor)}</text>`);
+        if (f.properties.kor && camera.visible(mid)) {
+          const p = camera.project(mid);
+          if (p) {
+            const common = `x="${n2(p[0])}" y="${n2(p[1])}"`;
+            labels.push(
+              `<text ${common} class="gi-layer-label-halo" fill="none" stroke="${theme.label.halo}" stroke-width="${halo}" stroke-linejoin="round">${escapeText(f.properties.kor)}</text>`,
+            );
+            labels.push(`<text ${common} class="gi-layer-label" fill="${color}">${escapeText(f.properties.kor)}</text>`);
+          }
+        }
       }
     }
-    if (items.length > 0) {
+    if (arrows.length > 0) out.push(`<g class="gi-layer-arrows">\n${arrows.join('\n')}\n</g>`);
+    if (labels.length > 0) {
       out.push(
         `<g class="gi-layer-labels" font-family="${escapeAttr(theme.label.font)}" font-size="${n2(theme.label.size * 0.85 * s)}" ` +
           `font-style="italic" text-anchor="middle">`,
       );
-      out.push(...items);
+      out.push(...labels);
       out.push('</g>');
     }
   }
@@ -263,6 +304,51 @@ function linkPath(p: { d: string; fill: string; stroke: string; width?: number; 
     if (p.dash) attrs['stroke-dasharray'] = p.dash;
   }
   return path(p.d, attrs);
+}
+
+/** 레이어 흐름선 색 — feature.kind → theme.layers 색(미정의면 warm 폴백). */
+function layerColor(theme: Theme, kind: string): string {
+  return theme.layers[kind] ?? theme.layers.warm ?? '#888888';
+}
+
+/** 해류 흐름선(warm/cold)인지 — 굵은 대양 흐름으로 그릴 대상(바람과 구분). */
+function isCurrentKind(kind: string): boolean {
+  return kind === 'warm' || kind === 'cold';
+}
+
+/**
+ * 흐름선 끝 갈매기형(barbed) 화살촉 — a→b 방향. 뒤가 오목해 날렵하다.
+ * tip 을 끝점 b 보다 ext 만큼 앞으로 빼서 굵은 선의 끝 캡을 덮는다. 좌표는 화면(viewBox).
+ */
+function arrowHead(
+  a: [number, number],
+  b: [number, number],
+  len: number,
+  halfW: number,
+  ext: number,
+  color: string,
+): string {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const m = Math.hypot(dx, dy) || 1;
+  const ux = dx / m;
+  const uy = dy / m;
+  const px = -uy; // 진행 방향에 수직
+  const py = ux;
+  const tx = b[0] + ext * ux; // 꼭짓점(끝점보다 앞)
+  const ty = b[1] + ext * uy;
+  const cx = tx - len * ux; // 날개 base 중심
+  const cy = ty - len * uy;
+  const w1x = cx + halfW * px;
+  const w1y = cy + halfW * py;
+  const w2x = cx - halfW * px;
+  const w2y = cy - halfW * py;
+  const nx = cx + len * 0.34 * ux; // 뒤 노치(오목) — 갈매기 모양
+  const ny = cy + len * 0.34 * uy;
+  return (
+    `<path class="gi-layer-arrow" fill="${color}" ` +
+    `d="M${n2(tx)} ${n2(ty)} L${n2(w1x)} ${n2(w1y)} L${n2(nx)} ${n2(ny)} L${n2(w2x)} ${n2(w2y)}Z"/>`
+  );
 }
 
 function path(d: string, attrs: Record<string, string>): string {

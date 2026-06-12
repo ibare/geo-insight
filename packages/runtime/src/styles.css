@@ -98,6 +98,47 @@
     border-color: #3fb6ab;
 }
 
+/* 레이어(환경) 토글 패널 — 칩 줄 아래 카드, 캔버스 hover 시 노출 */
+[data-geoinsight-root] .gi-edit-layers {
+    position: absolute;
+    z-index: 4;
+    left: 10px;
+    top: 50px;
+    display: none;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    max-width: 80%;
+    padding: 11px 14px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(127, 140, 158, 0.3);
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+}
+/* 칩이 펼쳐질 때만 환경 패널도 함께 노출(접힘=⋯ 이면 숨김). */
+[data-geoinsight-root] .gi-edit-chips.expanded ~ .gi-edit-layers {
+    display: flex;
+}
+[data-geoinsight-root] .gi-layer-toggle {
+    background: rgba(19, 28, 44, 0.06);
+    color: #5a6b7a;
+    border: 1px solid rgba(127, 140, 158, 0.3);
+    border-radius: 999px;
+    padding: 4px 14px;
+    font-size: 13px;
+    font-family: system-ui, sans-serif;
+    cursor: pointer;
+}
+[data-geoinsight-root] .gi-layer-toggle:hover {
+    border-color: #3fb6ab;
+}
+[data-geoinsight-root] .gi-layer-toggle.active {
+    background: #3fb6ab;
+    color: #07121a;
+    border-color: #3fb6ab;
+    font-weight: 600;
+}
+
 /* showOnly 나가기 버튼 — 좌상단, 캔버스 hover 시 노출 */
 [data-geoinsight-root] .gi-edit-exit {
     position: absolute;

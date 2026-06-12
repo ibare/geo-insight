@@ -63,8 +63,14 @@ export const DEFAULT_THEME: Theme = {
   },
   // 런타임 hover 하이라이트 — 커서 아래 지역 면(반투명)/아웃라인.
   hover: { fill: "rgba(255,255,255,0.18)", stroke: "#181818", width: 1 },
-  // 큐레이션 레이어 흐름선 — 난류(따뜻한 주황)/한류(찬 파랑).
-  layers: { warm: "#d9743a", cold: "#3a7fd9" },
+  // 큐레이션 레이어 흐름선 색(kind→색). 해류: 난류/한류, 바람: 무역/편서/극동.
+  layers: {
+    warm: "#d9743a",
+    cold: "#3a7fd9",
+    trade: "#5a9e6f",
+    westerly: "#c79a4a",
+    polar: "#8a93a8",
+  },
   tokens: COLOR_TOKENS,
 };
 

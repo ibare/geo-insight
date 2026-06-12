@@ -31,14 +31,40 @@ describe('layers — 큐레이션 레이어(해류) 파이프라인', () => {
     expect(count).toBe(readLayerFile('해류').length);
   });
 
-  it('해류 라벨(한국어 이름)이 렌더된다', () => {
+  it('해류 라벨(한국어 이름) + 방향 화살촉이 렌더된다', () => {
     const ds = createDefaultDataSource();
     loadLayerFromDisk(ds, '해류');
     const { svg } = compile('earth:\n  layers: 해류', { dataSource: ds });
     expect(svg).toContain('gi-layer-label');
+    expect(svg).toContain('gi-layer-arrow'); // 흐름 방향 화살촉
+    // 흐름 방향 그라데이션 — 꼬리(투명)→화살표(진함).
+    expect(svg).toContain('<linearGradient');
+    expect(svg).toContain('stop-opacity="0.04"');
     // 데이터의 kor 이름이 텍스트로 들어간다.
     expect(svg).toContain('쿠로시오 해류');
     expect(svg).toContain('멕시코 만류');
+  });
+
+  it('바람 레이어 — 무역/편서/극동 흐름선 + 화살촉 + 라벨', () => {
+    const ds = createDefaultDataSource();
+    loadLayerFromDisk(ds, '바람');
+    const { svg, scene } = compile('earth:\n  layers: 바람', { dataSource: ds });
+    expect(scene.layers).toEqual(['바람']);
+    expect(svg).toContain('gi-layer-trade');
+    expect(svg).toContain('gi-layer-westerly');
+    expect(svg).toContain('gi-layer-polar');
+    expect(svg).toContain('gi-layer-arrow');
+    expect(svg).toContain('편서풍');
+  });
+
+  it('해류와 바람을 동시에 표시한다', () => {
+    const ds = createDefaultDataSource();
+    loadLayerFromDisk(ds, '해류');
+    loadLayerFromDisk(ds, '바람');
+    const { svg, scene } = compile('earth:\n  layers: 해류, 바람', { dataSource: ds });
+    expect(scene.layers).toEqual(['해류', '바람']);
+    expect(svg).toContain('gi-layer-warm');
+    expect(svg).toContain('gi-layer-trade');
   });
 
   it('데이터 미주입(로드 안 함) 이면 레이어 path 가 없다 — 조용히 생략', () => {

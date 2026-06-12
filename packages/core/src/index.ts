@@ -22,6 +22,8 @@ export {
   addShowName,
   removeShowName,
   hasShowName,
+  hasLayer,
+  toggleLayer,
   addLink,
   removeLink,
   setLinkType,

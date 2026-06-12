@@ -1,3 +1,4 @@
 {
-  "해류": { "file": "currents", "kind": "flow" }
+  "해류": { "file": "currents", "kind": "flow" },
+  "바람": { "file": "winds", "kind": "flow" }
 }

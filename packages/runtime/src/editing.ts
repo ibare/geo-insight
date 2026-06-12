@@ -15,6 +15,7 @@ import {
   cameraFromMeta,
   createLocator,
   GROUP_DEFS,
+  hasLayer,
   hasShowName,
   removeLink,
   removeShowName,
@@ -23,6 +24,7 @@ import {
   setLinkType,
   setProjection,
   setShowOnly,
+  toggleLayer,
   type CompileResult,
   type Entity,
   type Link,
@@ -64,6 +66,9 @@ const CHIP_KEYS = [
   'group:south-america',
   'group:oceania',
 ];
+
+/** 토글 가능한 큐레이션 레이어(환경). 향후 dataSource 의 index 에서 동적 생성. */
+const LAYER_KEYS = ['해류', '바람'];
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const CLICK_MOVE_THRESHOLD = 5; // px
@@ -143,6 +148,27 @@ export function attachEditing(params: EditingParams): EditingController {
   toolbar.appendChild(chipList);
   host.appendChild(toolbar);
   for (const { el, name } of chipEls) el.classList.toggle('active', hasShowName(getSource(), name));
+
+  // ── 레이어(환경) 토글 패널 — 칩 줄 아래 카드. 켜진 레이어는 active. ──
+  const layerPanel = document.createElement('div');
+  layerPanel.className = 'gi-edit-layers';
+  for (const key of LAYER_KEYS) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'gi-layer-toggle';
+    btn.textContent = key;
+    btn.classList.toggle('active', hasLayer(getSource(), key));
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const src = getSource();
+      const next = toggleLayer(src, key);
+      if (next !== src) applyEdit(next);
+    });
+    layerPanel.appendChild(btn);
+  }
+  // showOnly(격리) 에선 전세계 레이어가 무의미 → 숨김(칩/모드 토글과 동일).
+  if (scene.showOnly) layerPanel.style.display = 'none';
+  host.appendChild(layerPanel);
 
   // ── 모드 토글(flat ↔ globe) — 투영 전환 버튼 ──
   // 펼친 지도(equirectangular)와 지구본(orthographic)을 오간다. 회전/팬은 휘발
@@ -566,6 +592,7 @@ export function attachEditing(params: EditingParams): EditingController {
       highlight.remove();
       tooltip.remove();
       toolbar.remove();
+      layerPanel.remove();
       modeBtn.remove();
       exitBtn?.remove();
     },

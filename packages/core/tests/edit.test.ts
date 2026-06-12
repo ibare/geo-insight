@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addLayer,
   addLink,
   addShowName,
+  hasLayer,
   hasShowName,
+  removeLayer,
   removeLink,
   removeShowName,
   removeShowOnly,
@@ -10,6 +13,7 @@ import {
   setLinkLabel,
   setLinkType,
   setShowOnly,
+  toggleLayer,
 } from '../src/edit.js';
 import { createLocator } from '../src/locate.js';
 import { compile } from '../src/compile.js';
@@ -88,6 +92,35 @@ describe('DSL 패치 — setLinkType/setLinkLabel', () => {
   it('removeLink 는 타입 키워드(wind 등)도 제거', () => {
     const out = removeLink(`earth:\n  wind: 수단 -> 인도 "x"`, '수단', '인도');
     expect(out).not.toContain('wind:');
+  });
+});
+
+describe('DSL 패치 — layers 토글', () => {
+  it('addLayer — layers 줄 없으면 헤더 다음에 삽입', () => {
+    const out = addLayer('earth:\n  show: 일본', '해류');
+    expect(out).toContain('layers: 해류');
+    expect(hasLayer(out, '해류')).toBe(true);
+  });
+
+  it('addLayer — 기존 layers 줄에 추가(중복은 무시)', () => {
+    const src = 'earth:\n  layers: 해류';
+    const out = addLayer(src, '바람');
+    expect(out).toContain('layers: 해류, 바람');
+    expect(addLayer(out, '해류')).toBe(out); // 중복 no-op
+  });
+
+  it('removeLayer — 항목 제거, 마지막이면 줄 삭제', () => {
+    expect(removeLayer('earth:\n  layers: 해류, 바람', '해류')).toContain('layers: 바람');
+    const empty = removeLayer('earth:\n  layers: 해류', '해류');
+    expect(empty).not.toContain('layers');
+  });
+
+  it('toggleLayer — 켜고 끄기 왕복', () => {
+    const src = 'earth:\n  show: 일본';
+    const on = toggleLayer(src, '해류');
+    expect(hasLayer(on, '해류')).toBe(true);
+    const off = toggleLayer(on, '해류');
+    expect(hasLayer(off, '해류')).toBe(false);
   });
 });
 

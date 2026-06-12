@@ -123,6 +123,59 @@ export function hasShowName(source: string, name: string): boolean {
   return parseList(lines[showIdx]!.slice(colon + 1)).some((n) => normalizeName(n) === norm);
 }
 
+/** `layers: ...` 에 name 이 켜져 있는지. */
+export function hasLayer(source: string, name: string): boolean {
+  const lines = splitLines(source);
+  const idx = findPropLine(lines, 'layers');
+  if (idx < 0) return false;
+  const colon = lines[idx]!.indexOf(':');
+  const norm = normalizeName(name);
+  return parseList(lines[idx]!.slice(colon + 1)).some((n) => normalizeName(n) === norm);
+}
+
+/** `layers: ...` 에 name 추가(이미 있으면 그대로). 줄이 없으면 헤더 다음에 삽입. */
+export function addLayer(source: string, name: string): string {
+  const target = name.trim();
+  if (!target) return source;
+  const lines = splitLines(source);
+  const indent = detectIndent(lines);
+  const idx = findPropLine(lines, 'layers');
+  if (idx >= 0) {
+    const colon = lines[idx]!.indexOf(':');
+    const names = parseList(lines[idx]!.slice(colon + 1));
+    const norm = normalizeName(target);
+    if (names.some((n) => normalizeName(n) === norm)) return source;
+    names.push(target);
+    lines[idx] = `${indent}layers: ${names.join(', ')}`;
+    return lines.join('\n');
+  }
+  insertAfter(lines, headerIndex(lines), `${indent}layers: ${target}`);
+  return lines.join('\n');
+}
+
+/** `layers: ...` 에서 name 제거. 비면 줄 삭제. */
+export function removeLayer(source: string, name: string): string {
+  const lines = splitLines(source);
+  const idx = findPropLine(lines, 'layers');
+  if (idx < 0) return source;
+  const colon = lines[idx]!.indexOf(':');
+  const names = parseList(lines[idx]!.slice(colon + 1));
+  const norm = normalizeName(name);
+  const kept = names.filter((n) => normalizeName(n) !== norm);
+  if (kept.length === names.length) return source;
+  if (kept.length === 0) {
+    lines.splice(idx, 1);
+  } else {
+    lines[idx] = `${detectIndent(lines)}layers: ${kept.join(', ')}`;
+  }
+  return lines.join('\n');
+}
+
+/** 레이어 토글 — 켜져 있으면 끄고, 아니면 켠다. */
+export function toggleLayer(source: string, name: string): string {
+  return hasLayer(source, name) ? removeLayer(source, name) : addLayer(source, name);
+}
+
 /** `link: from -> to` 추가(이미 있으면 그대로). */
 export function addLink(source: string, from: string, to: string): string {
   const f = from.trim();

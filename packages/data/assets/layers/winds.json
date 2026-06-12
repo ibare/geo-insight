@@ -1,0 +1,79 @@
+{
+  "type": "FeatureCollection",
+  "layer": "winds",
+  "note": "탁월풍 — 위도대 규칙(해들리/페렐/극 순환)으로 생성. 좌표 순서 = 바람 부는 방향.",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "wind:ne-trade-pacific",
+      "properties": { "name": "NE Trades", "kor": "북동무역풍", "kind": "trade" },
+      "geometry": { "type": "LineString", "coordinates": [[-115, 24], [-140, 17], [-165, 11]] }
+    },
+    {
+      "type": "Feature",
+      "id": "wind:ne-trade-atlantic",
+      "properties": { "name": "NE Trades", "kor": "북동무역풍", "kind": "trade" },
+      "geometry": { "type": "LineString", "coordinates": [[-28, 24], [-45, 17], [-62, 13]] }
+    },
+    {
+      "type": "Feature",
+      "id": "wind:se-trade-pacific",
+      "properties": { "name": "SE Trades", "kor": "남동무역풍", "kind": "trade" },
+      "geometry": { "type": "LineString", "coordinates": [[-95, -20], [-120, -14], [-145, -9]] }
+    },
+    {
+      "type": "Feature",
+      "id": "wind:se-trade-atlantic",
+      "properties": { "name": "SE Trades", "kor": "남동무역풍", "kind": "trade" },
+      "geometry": { "type": "LineString", "coordinates": [[-5, -20], [-22, -13], [-35, -9]] }
+    },
+    {
+      "type": "Feature",
+      "id": "wind:se-trade-indian",
+      "properties": { "name": "SE Trades", "kor": "남동무역풍", "kind": "trade" },
+      "geometry": { "type": "LineString", "coordinates": [[85, -20], [68, -14], [55, -11]] }
+    },
+    {
+      "type": "Feature",
+      "id": "wind:westerly-n-atlantic",
+      "properties": { "name": "Westerlies", "kor": "편서풍", "kind": "westerly" },
+      "geometry": { "type": "LineString", "coordinates": [[-72, 40], [-50, 45], [-22, 50]] }
+    },
+    {
+      "type": "Feature",
+      "id": "wind:westerly-n-pacific",
+      "properties": { "name": "Westerlies", "kor": "편서풍", "kind": "westerly" },
+      "geometry": { "type": "LineString", "coordinates": [[140, 40], [160, 43], [178, 45]] }
+    },
+    {
+      "type": "Feature",
+      "id": "wind:westerly-s-indian",
+      "properties": { "name": "Westerlies", "kor": "편서풍", "kind": "westerly" },
+      "geometry": { "type": "LineString", "coordinates": [[35, -46], [65, -48], [95, -49]] }
+    },
+    {
+      "type": "Feature",
+      "id": "wind:westerly-s-pacific",
+      "properties": { "name": "Westerlies", "kor": "편서풍", "kind": "westerly" },
+      "geometry": { "type": "LineString", "coordinates": [[-160, -48], [-130, -50], [-100, -51]] }
+    },
+    {
+      "type": "Feature",
+      "id": "wind:westerly-s-atlantic",
+      "properties": { "name": "Westerlies", "kor": "편서풍", "kind": "westerly" },
+      "geometry": { "type": "LineString", "coordinates": [[-45, -45], [-22, -48], [2, -50]] }
+    },
+    {
+      "type": "Feature",
+      "id": "wind:polar-easterly-north",
+      "properties": { "name": "Polar Easterlies", "kor": "극동풍", "kind": "polar" },
+      "geometry": { "type": "LineString", "coordinates": [[-50, 74], [-85, 71], [-120, 69]] }
+    },
+    {
+      "type": "Feature",
+      "id": "wind:polar-easterly-south",
+      "properties": { "name": "Polar Easterlies", "kor": "극동풍", "kind": "polar" },
+      "geometry": { "type": "LineString", "coordinates": [[30, -72], [0, -73], [-30, -71]] }
+    }
+  ]
+}

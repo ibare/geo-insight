@@ -82,8 +82,11 @@ export interface Theme {
   };
   /** 런타임 hover 하이라이트(편집 오버레이) — 커서 아래 지역의 면/아웃라인. */
   hover: { fill: string; stroke: string; width: number };
-  /** 큐레이션 레이어 색 — 해류 난류(warm)/한류(cold) 등 흐름선. */
-  layers: { warm: string; cold: string };
+  /**
+   * 큐레이션 레이어 흐름선 색 — feature.properties.kind → 색.
+   * 해류: warm(난류)/cold(한류). 바람: trade(무역풍)/westerly(편서풍)/polar(극동풍).
+   */
+  layers: Record<string, string>;
   /** named 토큰(amber/coral/teal 등) → hex. */
   tokens: Record<string, string>;
 }
