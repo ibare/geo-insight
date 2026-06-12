@@ -173,7 +173,7 @@ export function App(): JSX.Element {
   };
 
   const revert = async (): Promise<void> => {
-    if (!confirm('작업본을 폐기하고 원본 상태로 되돌립니다. 저장하지 않은 편집은 사라집니다.')) return;
+    if (!confirm('작업본을 원본(빌드 자산)으로 다시 시드합니다. 미배포 편집은 모두 사라집니다.')) return;
     await window.geoApi.revert();
     setPublishErr(null);
     refreshStatus();
@@ -241,7 +241,7 @@ export function App(): JSX.Element {
         </ToggleGroup.Root>
         <div className="bar-right">
           <button className="ghost-btn" onClick={() => void revert()} disabled={pending.length === 0}>
-            되돌리기
+            시드 교체
           </button>
           <button className="publish-btn" onClick={() => void publish()} disabled={pending.length === 0}>
             <UploadSimple weight="bold" size={15} />
