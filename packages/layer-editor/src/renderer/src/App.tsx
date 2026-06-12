@@ -2,6 +2,7 @@ import { type MouseEvent, type ReactNode, useEffect, useRef, useState } from 're
 import * as ToggleGroup from '@radix-ui/react-toggle-group';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { mount, type GeoInstance } from '@geoinsight/runtime';
+import { cardinalSpline } from '@geoinsight/core';
 import type { LayerFeature } from '@geoinsight/data';
 import { Cursor, MapPin, LineSegments, Polygon, FloppyDisk, Plus, UploadSimple, Trash } from '@phosphor-icons/react';
 
@@ -43,6 +44,10 @@ export function App(): JSX.Element {
   toolRef.current = tool;
   const selIdxRef = useRef<number | null>(selIdx);
   selIdxRef.current = selIdx;
+  // 드래그 상태 — setState 없이 ref+rAF 로만 갱신(지도 remount 회피).
+  const dragVtxRef = useRef<number | null>(null); // 드래그 중 정점 인덱스
+  const dragCoordsRef = useRef<[number, number][] | null>(null); // 드래그 중 선택 피처 좌표 사본
+  const draggedRef = useRef(false); // 실제 이동 발생(드래그 직후 click 억제)
 
   const refreshStatus = (): void => {
     window.geoApi
@@ -140,7 +145,7 @@ export function App(): JSX.Element {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // 선택 하이라이트 — rAF 로 매 프레임 재투영(지도 내부 팬·줌·회전 동기화).
+  // 선택 하이라이트 — rAF 로 매 프레임 재투영(지도 내부 팬·줌·회전 + 드래그 동기화).
   useEffect(() => {
     let raf = 0;
     const draw = (): void => {
@@ -149,13 +154,75 @@ export function App(): JSX.Element {
       if (svg && gi) {
         const i = selIdxRef.current;
         const ft = i != null && fcRef.current ? fcRef.current.features[i] : null;
-        svg.innerHTML = ft ? highlightSvg(ft.geometry, gi) : '';
+        if (ft) {
+          // 드래그 중이면 ref 좌표(미커밋)로 그림 — setState 없이 실시간.
+          const coords = dragCoordsRef.current ?? (ft.geometry.coordinates as [number, number][]);
+          const geom = { ...ft.geometry, coordinates: coords } as Geom;
+          svg.innerHTML = highlightSvg(geom, gi, ft.properties.prim === 'flow');
+        } else {
+          svg.innerHTML = '';
+        }
       }
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
   }, []);
+
+  // 제어점 드래그 — window 리스너(핸들 DOM 이 rAF 로 재생성돼도 끊기지 않게).
+  useEffect(() => {
+    const move = (e: globalThis.MouseEvent): void => {
+      const v = dragVtxRef.current;
+      const coords = dragCoordsRef.current;
+      const gi = inst.current;
+      if (v == null || !coords || !gi) return;
+      const ll = gi.unproject(e.clientX, e.clientY);
+      if (!ll) return;
+      coords[v] = [round(ll[0]), round(ll[1])];
+      draggedRef.current = true; // rAF 오버레이가 coords 를 그림
+    };
+    const up = (): void => {
+      if (dragVtxRef.current == null) return;
+      const i = selIdxRef.current;
+      const f = fcRef.current;
+      const coords = dragCoordsRef.current;
+      if (i != null && f && coords) {
+        // 드래그 종료 — fc 에 1회 커밋(지도 remount 1회). 드래그 대상은 LineString.
+        setFc({
+          ...f,
+          features: f.features.map((x, k) =>
+            k === i ? ({ ...x, geometry: { ...x.geometry, coordinates: coords } } as LayerFeature) : x,
+          ),
+        });
+        setDirty(true);
+      }
+      dragVtxRef.current = null;
+      dragCoordsRef.current = null;
+      setTimeout(() => {
+        draggedRef.current = false;
+      }, 0);
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    return () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+    };
+  }, []);
+
+  // 오버레이 핸들 mousedown → 드래그 시작(이벤트 위임).
+  const onOverlayDown = (e: MouseEvent): void => {
+    const v = (e.target as Element).getAttribute?.('data-vtx');
+    if (v == null) return;
+    e.stopPropagation();
+    const i = selIdxRef.current;
+    const f = fcRef.current;
+    const ft = i != null ? f?.features[i] : null;
+    if (!ft) return;
+    dragVtxRef.current = Number(v);
+    dragCoordsRef.current = (ft.geometry.coordinates as [number, number][]).map((c) => [...c] as [number, number]);
+    draggedRef.current = false;
+  };
 
   const openLayer = async (name: string): Promise<void> => {
     setEditing(name);
@@ -250,6 +317,7 @@ export function App(): JSX.Element {
   const onCanvasClick = (e: MouseEvent): void => {
     if (!inst.current || !fc || !editing) return;
     if (tool === 'select') {
+      if (draggedRef.current) return; // 드래그 직후 click 무시
       setSelIdx(hitTest(e.clientX, e.clientY)); // 빈 곳 클릭 → 선택 해제
       return;
     }
@@ -368,7 +436,7 @@ export function App(): JSX.Element {
 
         <main className={`canvas${tool !== 'select' ? ' drawing' : ''}`} onClick={onCanvasClick}>
           <div ref={mapRef} className="map" data-geoinsight-root="true" />
-          <svg ref={overlayRef} className="overlay" />
+          <svg ref={overlayRef} className="overlay" onMouseDown={onOverlayDown} />
           {drawing && (
             <div className="draft-bar" onClick={(e) => e.stopPropagation()}>
               <span>
@@ -571,20 +639,48 @@ function distToFeature(geom: Geom, px: number, py: number, gi: GeoInstance): num
 
 const ACCENT = '#3fb6ab';
 
-/** 선택 피처의 외곽선 + 정점 핸들을 px SVG 문자열로. */
-function highlightSvg(geom: Geom, gi: GeoInstance): string {
-  const { lines, points } = geomToPx(geom, gi);
-  const closed = geom.type === 'Polygon';
+const handleSvg = (vtx: number | null, x: number, y: number): string =>
+  `<circle class="vtx"${vtx == null ? '' : ` data-vtx="${vtx}"`} cx="${x}" cy="${y}" r="5" fill="#0b1018" stroke="${ACCENT}" stroke-width="2"/>`;
+
+/**
+ * 선택 피처의 외곽선 + 정점 핸들을 px SVG 문자열로.
+ * 흐름(isFlow)이면 core 와 동일한 카디널 스플라인으로 곡선 미리보기.
+ * LineString 핸들은 제어점 인덱스(data-vtx)를 보존해 드래그 대상이 된다.
+ */
+function highlightSvg(geom: Geom, gi: GeoInstance, isFlow = false): string {
+  const isLine = geom.type === 'LineString';
   let s = '';
-  for (const line of lines) {
-    if (line.length < 2) continue;
-    const d = line.map((p) => `${p[0]},${p[1]}`).join(' ');
-    s += closed
-      ? `<polygon points="${d}" fill="rgba(63,182,171,0.12)" stroke="${ACCENT}" stroke-width="3" stroke-linejoin="round"/>`
-      : `<polyline points="${d}" fill="none" stroke="${ACCENT}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>`;
+  // 외곽선
+  if (isFlow && isLine) {
+    const ctrl = geom.coordinates as Pt[];
+    if (ctrl.length >= 2) {
+      const px = projAll(cardinalSpline(ctrl), gi);
+      if (px.length >= 2) {
+        const d = px.map((p) => `${p[0]},${p[1]}`).join(' ');
+        s += `<polyline points="${d}" fill="none" stroke="${ACCENT}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+      }
+    }
+  } else {
+    const { lines } = geomToPx(geom, gi);
+    const closed = geom.type === 'Polygon';
+    for (const line of lines) {
+      if (line.length < 2) continue;
+      const d = line.map((p) => `${p[0]},${p[1]}`).join(' ');
+      s += closed
+        ? `<polygon points="${d}" fill="rgba(63,182,171,0.12)" stroke="${ACCENT}" stroke-width="3" stroke-linejoin="round"/>`
+        : `<polyline points="${d}" fill="none" stroke="${ACCENT}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>`;
+    }
   }
-  for (const [x, y] of points) {
-    s += `<circle cx="${x}" cy="${y}" r="4.5" fill="#0b1018" stroke="${ACCENT}" stroke-width="2"/>`;
+  // 제어점 핸들 — LineString 은 인덱스 보존(드래그 대상), 그 외는 인덱스 없이.
+  if (isLine) {
+    const ctrl = geom.coordinates as Pt[];
+    for (let k = 0; k < ctrl.length; k++) {
+      const p = gi.project(ctrl[k]![0], ctrl[k]![1]);
+      if (p) s += handleSvg(k, p[0], p[1]);
+    }
+  } else {
+    const { points } = geomToPx(geom, gi);
+    for (const [x, y] of points) s += handleSvg(null, x, y);
   }
   return s;
 }

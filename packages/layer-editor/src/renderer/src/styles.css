@@ -385,6 +385,17 @@ h2 {
   pointer-events: none;
   z-index: 1;
 }
+/* 정점 핸들만 포인터 이벤트 수신(드래그 가능). */
+.overlay .vtx {
+  pointer-events: auto;
+  cursor: grab;
+}
+.overlay .vtx:hover {
+  fill: var(--accent);
+}
+.overlay .vtx:active {
+  cursor: grabbing;
+}
 
 /* feature 목록 */
 .feature-list {
