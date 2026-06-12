@@ -63,6 +63,8 @@ export const DEFAULT_THEME: Theme = {
   },
   // 런타임 hover 하이라이트 — 커서 아래 지역 면(반투명)/아웃라인.
   hover: { fill: "rgba(255,255,255,0.18)", stroke: "#181818", width: 1 },
+  // 큐레이션 레이어 흐름선 — 난류(따뜻한 주황)/한류(찬 파랑).
+  layers: { warm: "#d9743a", cold: "#3a7fd9" },
   tokens: COLOR_TOKENS,
 };
 
@@ -83,6 +85,7 @@ export function resolveTheme(override?: Partial<Theme>): Theme {
       ...(override.subdivision ?? {}),
     },
     hover: { ...DEFAULT_THEME.hover, ...(override.hover ?? {}) },
+    layers: { ...DEFAULT_THEME.layers, ...(override.layers ?? {}) },
     tokens: { ...DEFAULT_THEME.tokens, ...(override.tokens ?? {}) },
   };
 }

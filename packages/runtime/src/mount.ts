@@ -26,6 +26,7 @@ import {
   type CompileResult,
   type DataSource,
   type GeoFeature,
+  type LayerFeature,
   type InternalOptions,
   type Locator,
   type Resolver,
@@ -48,6 +49,11 @@ export interface MountOptions extends InternalOptions {
    * 가져온다. 제공되면 compile 전에 필요한 국가를 fetch·주입하고 렌더. 미제공 시 ADM1 미지원.
    */
   loadAdm1?: (ccn3: string) => Promise<GeoFeature[] | null>;
+  /**
+   * 레이어 지연 로더 — layers 에 켜진 레이어명('해류')의 지오메트리를 비동기로 가져온다.
+   * 제공되면 compile 전에 필요한 레이어를 fetch·주입하고 렌더. 미제공 시 레이어 미표시.
+   */
+  loadLayer?: (name: string) => Promise<LayerFeature[]>;
 }
 
 export interface GeoInstance {
@@ -67,6 +73,16 @@ interface FitBase {
   scale: number;
   translate: [number, number];
 }
+/** DSL 의 `layers: A, B` 줄에서 켜진 레이어 이름들을 뽑는다(지연 로드 대상 판별용). */
+function layersFor(src: string): string[] {
+  const m = /^\s*layers\s*:\s*(.+)$/m.exec(src);
+  if (!m) return [];
+  return m[1]!
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 /**
  * 재렌더 시 현재 뷰포트(카메라 + 줌/팬)를 보존하기 위한 스냅샷.
  * 클릭 편집(show 추가/제거 등)에서 fitExtent 재프레이밍을 막아 화면이 점프하지 않게 한다.
@@ -105,6 +121,7 @@ export function mount(
   const resolver: Resolver = opts.resolver ?? createResolver({ dataSource });
   const compileOpts: MountOptions = { ...opts, dataSource, resolver };
   const adm1InFlight = new Set<string>();
+  const layerInFlight = new Set<string>();
 
   const teardown = (): void => {
     if (rotateRaf) {
@@ -265,6 +282,28 @@ export function mount(
                 `번들의 dist/chunks/ 가 서빙되는지(동적 import 경로) 확인하세요.`,
             );
           }
+        }
+        if (destroyed) return;
+      }
+    }
+    // 레이어 지연 로드 — layers 에 켜진 이름의 지오메트리를 주입(ADM1 과 같은 2단계).
+    if (typeof input === 'string' && opts.loadLayer) {
+      const need = layersFor(input).filter(
+        (n) => dataSource.layer(n).length === 0 && !layerInFlight.has(n),
+      );
+      if (need.length > 0) {
+        need.forEach((n) => layerInFlight.add(n));
+        const loaded = await Promise.all(
+          need.map((n) =>
+            opts
+              .loadLayer!(n)
+              .then((fs) => [n, fs] as const)
+              .catch(() => [n, [] as LayerFeature[]] as const),
+          ),
+        );
+        for (const [n, fs] of loaded) {
+          layerInFlight.delete(n);
+          if (fs.length > 0) dataSource.loadLayer(n, fs);
         }
         if (destroyed) return;
       }

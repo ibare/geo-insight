@@ -20,6 +20,39 @@ export interface MultiPolygonGeometry {
 
 export type CountryGeometry = PolygonGeometry | MultiPolygonGeometry;
 
+export interface LineStringGeometry {
+  type: 'LineString';
+  coordinates: Position[];
+}
+export interface MultiLineStringGeometry {
+  type: 'MultiLineString';
+  coordinates: Position[][];
+}
+/** 레이어 지오메트리 — 선(해류/경계), 면(기후대) 등. 점은 추후 확장. */
+export type LayerGeometry =
+  | LineStringGeometry
+  | MultiLineStringGeometry
+  | PolygonGeometry
+  | MultiPolygonGeometry;
+
+/**
+ * 큐레이션 레이어 feature(해류 등) — 사용자 저작이 아닌, 앱이 제공하는 지리 데이터.
+ * GeoFeature(국가 폴리곤)와 달리 선/면을 담고 properties 가 자유롭다.
+ * 향후 전문가 편집기가 출력하는 GeoJSON 이 이 형태로 들어온다.
+ */
+export interface LayerFeature {
+  type: 'Feature';
+  id: string;
+  properties: {
+    name: string;
+    kor: string;
+    /** 레이어별 분류 — 해류면 'warm'|'cold'. */
+    kind?: string;
+    [key: string]: unknown;
+  };
+  geometry: LayerGeometry;
+}
+
 /** 국가/행정구역 폴리곤 한 조각 (GeoJSON Feature 최소형). */
 export interface GeoFeature {
   type: 'Feature';
@@ -114,4 +147,11 @@ export interface DataSource {
   adm1(ccn3: string): GeoFeature[];
   /** ADM1 지오메트리 주입(2단계 로딩의 write 측). */
   loadAdm1(ccn3: string, features: GeoFeature[]): void;
+  /**
+   * 해당 레이어의 **이미 로드된** feature 목록(없으면 빈 배열). 키는 DSL 이름('해류').
+   * ADM1 과 같은 2단계 로딩 — 외부 로더가 loadLayer 로 주입, compile 은 동기·순수 유지.
+   */
+  layer(name: string): LayerFeature[];
+  /** 레이어 지오메트리 주입(2단계 로딩의 write 측). */
+  loadLayer(name: string, features: LayerFeature[]): void;
 }

@@ -8,8 +8,8 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./node": "./src/adm1-fs.ts",
-    "./browser": "./src/adm1-loader.ts"
+    "./node": "./src/node.ts",
+    "./browser": "./src/browser.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

@@ -82,6 +82,8 @@ export interface Theme {
   };
   /** 런타임 hover 하이라이트(편집 오버레이) — 커서 아래 지역의 면/아웃라인. */
   hover: { fill: string; stroke: string; width: number };
+  /** 큐레이션 레이어 색 — 해류 난류(warm)/한류(cold) 등 흐름선. */
+  layers: { warm: string; cold: string };
   /** named 토큰(amber/coral/teal 등) → hex. */
   tokens: Record<string, string>;
 }
@@ -152,6 +154,8 @@ export interface Scene {
   title?: string;
   /** showOnly 모드의 대상 국가 ccn3 — 설정 시 emit 이 바다/이웃국/그래티큘을 생략(격리). */
   showOnly?: string;
+  /** 켜진 큐레이션 레이어 이름들(예: ['해류']). emit 이 dataSource 에서 지오메트리 조회. */
+  layers?: string[];
   projection: ProjSpec;
   fit: FitSpec;
   theme: ResolvedTheme;

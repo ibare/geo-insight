@@ -13,6 +13,7 @@ import type {
   CountryGeometry,
   DataSource,
   GeoFeature,
+  LayerFeature,
   MultiPolygonGeometry,
   PolygonGeometry,
 } from './types.js';
@@ -148,6 +149,8 @@ export function createDefaultDataSource(): DataSource {
   }
   // ccn3 → 로드된 ADM1 feature 목록. 외부 로더가 loadAdm1 로 채운다.
   const adm1Store = new Map<string, GeoFeature[]>();
+  // 레이어 이름('해류') → 로드된 LayerFeature 목록. 외부 로더가 loadLayer 로 채운다.
+  const layerStore = new Map<string, LayerFeature[]>();
   return {
     countryByCode: (ccn3) => byCode.get(ccn3),
     allCountries: () => features(),
@@ -155,6 +158,10 @@ export function createDefaultDataSource(): DataSource {
     adm1: (ccn3) => adm1Store.get(ccn3) ?? [],
     loadAdm1: (ccn3, fs) => {
       adm1Store.set(ccn3, fs);
+    },
+    layer: (name) => layerStore.get(name) ?? [],
+    loadLayer: (name, fs) => {
+      layerStore.set(name, fs);
     },
   };
 }

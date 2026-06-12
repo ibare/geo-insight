@@ -69,6 +69,7 @@ export {
   type SearchHit,
   type DataSource,
   type GeoFeature,
+  type LayerFeature,
   type ResolveResult,
   type GroupDef,
 } from '@geoinsight/data';

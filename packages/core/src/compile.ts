@@ -181,6 +181,7 @@ function composeScene(
   };
   if (built.config.title) scene.title = built.config.title;
   if (built.config.showOnly) scene.showOnly = built.config.showOnly;
+  if (built.config.layers && built.config.layers.length > 0) scene.layers = built.config.layers;
 
   const input: EmitInput = {
     scene,

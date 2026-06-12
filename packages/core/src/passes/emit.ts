@@ -95,6 +95,28 @@ export function emitGeometry(input: EmitInput): string {
           'vector-effect': 'non-scaling-stroke',
         }),
       );
+
+    // 3.5 큐레이션 레이어(해류 등) — 바다/세계 위, 행정구역·엔티티 아래.
+    //     난류/한류로 색을 가르고, 흐름선마다 개별 path. 격리 모드(바다 생략)는 제외.
+    for (const name of scene.layers ?? []) {
+      for (const f of dataSource.layer(name)) {
+        const d = camera.path(f);
+        if (!d) continue;
+        const warm = f.properties.kind === 'warm';
+        out.push(
+          path(d, {
+            class: `gi-layer gi-layer-${warm ? 'warm' : 'cold'}`,
+            'data-layer': name,
+            'data-id': f.id,
+            fill: 'none',
+            stroke: warm ? theme.layers.warm : theme.layers.cold,
+            'stroke-width': '1.6',
+            'stroke-linecap': 'round',
+            'vector-effect': 'non-scaling-stroke',
+          }),
+        );
+      }
+    }
   }
 
   // 3.6 행정구역 맥락 — ADM1 이 표시된 국가의 전체 주/도 경계를 옅게 깔아
@@ -142,7 +164,7 @@ export function emitGeometry(input: EmitInput): string {
 
 /** 주석 레이어(가벼움, 화면상 일정 크기) — 5대양 라벨/links/labels. */
 export function emitAnnotations(input: EmitInput): string {
-  const { scene, links, labels, oceans, theme } = input;
+  const { scene, camera, links, labels, oceans, theme, dataSource } = input;
   const s = input.annotationScale && input.annotationScale > 0 ? input.annotationScale : 1;
   const isolated = scene.showOnly != null;
   const out: string[] = [];
@@ -157,6 +179,37 @@ export function emitAnnotations(input: EmitInput): string {
       out.push(`<text x="${o.x}" y="${o.y}" class="gi-ocean-label">${escapeText(o.text)}</text>`);
     }
     out.push('</g>');
+  }
+
+  // 레이어 라벨(해류 이름) — 흐름선 중간점, 화면 일정 크기. 격리 모드 제외, globe 뒷면 컬링.
+  if (!isolated && (scene.layers?.length ?? 0) > 0) {
+    const halo = n2(2.5 * s);
+    const items: string[] = [];
+    for (const name of scene.layers!) {
+      for (const f of dataSource.layer(name)) {
+        if (f.geometry.type !== 'LineString') continue;
+        const coords = f.geometry.coordinates;
+        if (coords.length === 0) continue;
+        const mid = coords[Math.floor(coords.length / 2)]!;
+        if (!camera.visible(mid)) continue;
+        const p = camera.project(mid);
+        if (!p) continue;
+        const color = f.properties.kind === 'warm' ? theme.layers.warm : theme.layers.cold;
+        const common = `x="${n2(p[0])}" y="${n2(p[1])}"`;
+        items.push(
+          `<text ${common} class="gi-layer-label-halo" fill="none" stroke="${theme.label.halo}" stroke-width="${halo}" stroke-linejoin="round">${escapeText(f.properties.kor)}</text>`,
+        );
+        items.push(`<text ${common} class="gi-layer-label" fill="${color}">${escapeText(f.properties.kor)}</text>`);
+      }
+    }
+    if (items.length > 0) {
+      out.push(
+        `<g class="gi-layer-labels" font-family="${escapeAttr(theme.label.font)}" font-size="${n2(theme.label.size * 0.85 * s)}" ` +
+          `font-style="italic" text-anchor="middle">`,
+      );
+      out.push(...items);
+      out.push('</g>');
+    }
   }
 
   // links (타입별 path — wedge/stroke/wavy/arrowhead 모두 paths 로) + 투명 히트 영역

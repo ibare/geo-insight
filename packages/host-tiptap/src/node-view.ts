@@ -1,5 +1,5 @@
 import type { NodeViewRenderer, NodeViewRendererProps } from '@tiptap/core';
-import type { GeoFeature } from '@geoinsight/core';
+import type { GeoFeature, LayerFeature } from '@geoinsight/core';
 import { mountGeoInsight, type GeoMountHandle } from './mount.js';
 
 /** data-height 미지정 시 NodeView 가 mount 에 넘기는 기본 높이(px). */
@@ -24,6 +24,7 @@ export function createGeoInsightNodeView(): NodeViewRenderer {
       locale?: string;
       theme?: 'light' | 'dark';
       loadAdm1?: (ccn3: string) => Promise<GeoFeature[] | null>;
+      loadLayer?: (name: string) => Promise<LayerFeature[]>;
     };
 
     const dom = document.createElement('pre');
@@ -74,6 +75,7 @@ export function createGeoInsightNodeView(): NodeViewRenderer {
       locale: opts.locale,
       theme: opts.theme,
       loadAdm1: opts.loadAdm1,
+      loadLayer: opts.loadLayer,
       editable: editor.options.editable,
       onChange: writeBackSource,
     });

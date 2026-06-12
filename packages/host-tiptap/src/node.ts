@@ -1,6 +1,6 @@
 import { Node, mergeAttributes } from '@tiptap/core';
-import type { GeoFeature } from '@geoinsight/core';
-import { loadAdm1Browser } from '@geoinsight/data/browser';
+import type { GeoFeature, LayerFeature } from '@geoinsight/core';
+import { loadAdm1Browser, loadLayerBrowser } from '@geoinsight/data/browser';
 import { createGeoInsightNodeView } from './node-view.js';
 
 export const GEOINSIGHT_NODE_NAME = 'geoinsightBlock';
@@ -17,6 +17,11 @@ export interface GeoInsightExtensionOptions {
    * 호스트가 자체 자산 서빙(fetch 등)을 쓰려면 직접 주입해 오버라이드.
    */
   loadAdm1?: (ccn3: string) => Promise<GeoFeature[] | null>;
+  /**
+   * 레이어 지연 로더 — 'layers: 해류' 등 켜진 레이어 지오메트리를 비동기로 가져온다.
+   * 기본값은 loadLayerBrowser(번들 동봉 동적 import). 호스트가 자체 서빙 시 오버라이드.
+   */
+  loadLayer?: (name: string) => Promise<LayerFeature[]>;
 }
 
 /**
@@ -45,7 +50,7 @@ export const GeoInsightExtension = Node.create<GeoInsightExtensionOptions>({
   draggable: false,
 
   addOptions() {
-    return { locale: undefined, theme: undefined, loadAdm1: loadAdm1Browser };
+    return { locale: undefined, theme: undefined, loadAdm1: loadAdm1Browser, loadLayer: loadLayerBrowser };
   },
 
   /** 캔버스 높이(px) attr — 호스트 영속 표면. 미조절 fence 는 attr 없이 유지. */

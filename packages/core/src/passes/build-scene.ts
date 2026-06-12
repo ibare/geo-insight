@@ -72,6 +72,8 @@ export interface SceneConfig {
   fitExplicit?: boolean;
   /** showOnly 대상 — 처음엔 원시 국가명, 해석 후 ccn3 로 치환. */
   showOnly?: string;
+  /** 켜진 큐레이션 레이어 이름들(예: ['해류']). 지오메트리는 dataSource 가 보유. */
+  layers?: string[];
   themeOverride: Partial<Theme>;
 }
 
@@ -373,6 +375,10 @@ function applySceneProp(
     case 'showOnly':
       // 단일 국가만 — 원시 이름 저장(후속에서 ccn3 로 해석). 첫 항목만.
       config.showOnly = (stmt.list ?? [stmt.raw])[0]?.trim();
+      break;
+    case 'layers':
+      // 큐레이션 레이어 토글(예: '해류'). 지오메트리는 dataSource 가 lazy 로드.
+      config.layers = (stmt.list ?? [stmt.raw]).map((n) => n.trim()).filter(Boolean);
       break;
     case 'arrange':
       if (stmt.relation) config.arrange = stmt.relation;
