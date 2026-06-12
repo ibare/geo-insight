@@ -1,5 +1,7 @@
 node_modules/
 dist/
+out/
+.turbo/
 *.tsbuildinfo
 .DS_Store
 stats.html
