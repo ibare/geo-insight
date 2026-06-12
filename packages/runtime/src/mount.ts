@@ -67,6 +67,11 @@ export interface GeoInstance {
   getResult(): CompileResult | null;
   /** 화면(client) 좌표 → 위경도 [lon, lat]. 현재 줌/팬/회전 반영. 편집기 좌표 찍기용. */
   unproject(clientX: number, clientY: number): [number, number] | null;
+  /**
+   * 위경도 [lon, lat] → 컨테이너 기준 화면 px [x, y]. unproject 의 역.
+   * globe 뒷면 등 투영 불가 시 null. 편집기 선택 하이라이트/정점 핸들용.
+   */
+  project(lon: number, lat: number): [number, number] | null;
 }
 
 type Rotate = [number, number];
@@ -427,6 +432,30 @@ export function mount(
       const sx = view[0] + (clientX - rect.left - offX) / scale;
       const sy = view[1] + (clientY - rect.top - offY) / scale;
       return cameraFromMeta(result.meta).unproject([sx, sy]);
+    },
+    project(lon, lat) {
+      if (!svg || !result || !controller) return null;
+      const rect = svg.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return null;
+      const p = cameraFromMeta(result.meta).project([lon, lat]);
+      if (!p) return null;
+      // 위경도 → viewBox 좌표 → 컨테이너 기준 px(unproject 의 정확한 역, 레터박스 보정).
+      const view = controller.getView();
+      const vbAspect = view[2] / view[3];
+      const elAspect = rect.width / rect.height;
+      let scale: number;
+      let offX: number;
+      let offY: number;
+      if (elAspect > vbAspect) {
+        scale = rect.height / view[3];
+        offX = (rect.width - view[2] * scale) / 2;
+        offY = 0;
+      } else {
+        scale = rect.width / view[2];
+        offX = 0;
+        offY = (rect.height - view[3] * scale) / 2;
+      }
+      return [(p[0] - view[0]) * scale + offX, (p[1] - view[1]) * scale + offY];
     },
     zoomTo(entityKey) {
       if (!svg || !controller) return;

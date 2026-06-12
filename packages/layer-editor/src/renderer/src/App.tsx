@@ -3,7 +3,7 @@ import * as ToggleGroup from '@radix-ui/react-toggle-group';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { mount, type GeoInstance } from '@geoinsight/runtime';
 import type { LayerFeature } from '@geoinsight/data';
-import { Cursor, MapPin, LineSegments, Polygon, FloppyDisk, Plus, UploadSimple } from '@phosphor-icons/react';
+import { Cursor, MapPin, LineSegments, Polygon, FloppyDisk, Plus, UploadSimple, Trash } from '@phosphor-icons/react';
 
 type LayerIndex = Record<string, { file: string; kind: string }>;
 type FC = { type: string; features: LayerFeature[]; [k: string]: unknown };
@@ -30,7 +30,9 @@ export function App(): JSX.Element {
   const [pending, setPending] = useState<{ file: string; kind: 'new' | 'modified' }[]>([]);
   const [publishErr, setPublishErr] = useState<string[] | null>(null);
 
-  // loadLayer/키 핸들러 클로저가 최신 상태를 보도록 ref 미러.
+  const overlayRef = useRef<SVGSVGElement>(null);
+
+  // loadLayer/키 핸들러/rAF 클로저가 최신 상태를 보도록 ref 미러.
   const fcRef = useRef<FC | null>(fc);
   fcRef.current = fc;
   const editingRef = useRef<string | null>(editing);
@@ -39,6 +41,8 @@ export function App(): JSX.Element {
   draftRef.current = draft;
   const toolRef = useRef<Tool>(tool);
   toolRef.current = tool;
+  const selIdxRef = useRef<number | null>(selIdx);
+  selIdxRef.current = selIdx;
 
   const refreshStatus = (): void => {
     window.geoApi
@@ -120,15 +124,37 @@ export function App(): JSX.Element {
   // 키: Esc 취소 / Enter 완료.
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
+      const ae = document.activeElement;
+      const typing = ae?.tagName === 'INPUT' || ae?.tagName === 'TEXTAREA';
       if (e.key === 'Escape') {
         setDraft([]);
         setTool('select');
       } else if (e.key === 'Enter' && draftRef.current.length > 0) {
         finishRef.current();
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && !typing && selIdxRef.current != null) {
+        e.preventDefault();
+        deleteFeatureRef.current(selIdxRef.current);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // 선택 하이라이트 — rAF 로 매 프레임 재투영(지도 내부 팬·줌·회전 동기화).
+  useEffect(() => {
+    let raf = 0;
+    const draw = (): void => {
+      const svg = overlayRef.current;
+      const gi = inst.current;
+      if (svg && gi) {
+        const i = selIdxRef.current;
+        const ft = i != null && fcRef.current ? fcRef.current.features[i] : null;
+        svg.innerHTML = ft ? highlightSvg(ft.geometry, gi) : '';
+      }
+      raf = requestAnimationFrame(draw);
+    };
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   const openLayer = async (name: string): Promise<void> => {
@@ -192,8 +218,41 @@ export function App(): JSX.Element {
     void openLayer(name);
   };
 
+  const deleteFeature = (i: number): void => {
+    if (!fc) return;
+    setFc({ ...fc, features: fc.features.filter((_, k) => k !== i) });
+    setSelIdx(null);
+    setDirty(true);
+  };
+  const deleteFeatureRef = useRef(deleteFeature);
+  deleteFeatureRef.current = deleteFeature;
+
+  /** 화면 클릭과 가장 가까운 피처 인덱스(8px 이내) — 캔버스 직접 선택. */
+  const hitTest = (clientX: number, clientY: number): number | null => {
+    const gi = inst.current;
+    const f = fc;
+    if (!gi || !f || !mapRef.current) return null;
+    const rect = mapRef.current.getBoundingClientRect();
+    const px = clientX - rect.left;
+    const py = clientY - rect.top;
+    let best: number | null = null;
+    let bestD = 8;
+    f.features.forEach((ft, i) => {
+      const d = distToFeature(ft.geometry, px, py, gi);
+      if (d != null && d <= bestD) {
+        bestD = d;
+        best = i;
+      }
+    });
+    return best;
+  };
+
   const onCanvasClick = (e: MouseEvent): void => {
     if (!inst.current || !fc || !editing) return;
+    if (tool === 'select') {
+      setSelIdx(hitTest(e.clientX, e.clientY)); // 빈 곳 클릭 → 선택 해제
+      return;
+    }
     const ll = inst.current.unproject(e.clientX, e.clientY);
     if (!ll) return;
     const pt: [number, number] = [round(ll[0]), round(ll[1])];
@@ -309,6 +368,7 @@ export function App(): JSX.Element {
 
         <main className={`canvas${tool !== 'select' ? ' drawing' : ''}`} onClick={onCanvasClick}>
           <div ref={mapRef} className="map" data-geoinsight-root="true" />
+          <svg ref={overlayRef} className="overlay" />
           {drawing && (
             <div className="draft-bar" onClick={(e) => e.stopPropagation()}>
               <span>
@@ -364,6 +424,10 @@ export function App(): JSX.Element {
                     <label>형태</label>
                     <span>{sel.geometry.type}</span>
                   </div>
+                  <button className="delete-btn" onClick={() => selIdx != null && deleteFeature(selIdx)}>
+                    <Trash size={15} />
+                    피처 삭제 (Del)
+                  </button>
                 </div>
               )}
             </>
@@ -438,4 +502,89 @@ function NumberField({
       />
     </label>
   );
+}
+
+// ── 지오메트리 ↔ 화면 px (hit-test / 선택 하이라이트) ──────────────
+type Pt = [number, number];
+type Geom = LayerFeature['geometry'];
+
+const projAll = (coords: Pt[], gi: GeoInstance): Pt[] =>
+  coords.map((c) => gi.project(c[0], c[1])).filter((p): p is Pt => p != null);
+
+/** geometry 를 화면 px 의 폴리라인 묶음 + 정점 목록으로. project 불가 점(globe 뒷면)은 제외. */
+function geomToPx(geom: Geom, gi: GeoInstance): { lines: Pt[][]; points: Pt[] } {
+  if (geom.type === 'Point') {
+    const p = gi.project(geom.coordinates[0], geom.coordinates[1]);
+    return { lines: [], points: p ? [p] : [] };
+  }
+  if (geom.type === 'MultiPoint') {
+    return { lines: [], points: projAll(geom.coordinates as Pt[], gi) };
+  }
+  if (geom.type === 'LineString') {
+    const l = projAll(geom.coordinates as Pt[], gi);
+    return { lines: [l], points: l };
+  }
+  // Polygon
+  const rings = (geom.coordinates as Pt[][]).map((r) => projAll(r, gi));
+  return { lines: rings, points: rings.flat() };
+}
+
+function segDist(px: number, py: number, a: Pt, b: Pt): number {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const l2 = dx * dx + dy * dy;
+  if (l2 === 0) return Math.hypot(px - a[0], py - a[1]);
+  let t = ((px - a[0]) * dx + (py - a[1]) * dy) / l2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (a[0] + t * dx), py - (a[1] + t * dy));
+}
+
+function inPoly(px: number, py: number, pts: Pt[]): boolean {
+  let c = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const [xi, yi] = pts[i]!;
+    const [xj, yj] = pts[j]!;
+    if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) c = !c;
+  }
+  return c;
+}
+
+/** 화면 px (px,py) 와 피처의 거리. 면 내부면 0. project 불가 시 null. */
+function distToFeature(geom: Geom, px: number, py: number, gi: GeoInstance): number | null {
+  const { lines, points } = geomToPx(geom, gi);
+  let best: number | null = null;
+  for (const [x, y] of points) {
+    const d = Math.hypot(px - x, py - y);
+    if (best == null || d < best) best = d;
+  }
+  for (const line of lines) {
+    for (let i = 1; i < line.length; i++) {
+      const d = segDist(px, py, line[i - 1]!, line[i]!);
+      if (best == null || d < best) best = d;
+    }
+  }
+  if (geom.type === 'Polygon') {
+    for (const ring of lines) if (ring.length >= 3 && inPoly(px, py, ring)) return 0;
+  }
+  return best;
+}
+
+const ACCENT = '#3fb6ab';
+
+/** 선택 피처의 외곽선 + 정점 핸들을 px SVG 문자열로. */
+function highlightSvg(geom: Geom, gi: GeoInstance): string {
+  const { lines, points } = geomToPx(geom, gi);
+  const closed = geom.type === 'Polygon';
+  let s = '';
+  for (const line of lines) {
+    if (line.length < 2) continue;
+    const d = line.map((p) => `${p[0]},${p[1]}`).join(' ');
+    s += closed
+      ? `<polygon points="${d}" fill="rgba(63,182,171,0.12)" stroke="${ACCENT}" stroke-width="3" stroke-linejoin="round"/>`
+      : `<polyline points="${d}" fill="none" stroke="${ACCENT}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>`;
+  }
+  for (const [x, y] of points) {
+    s += `<circle cx="${x}" cy="${y}" r="4.5" fill="#0b1018" stroke="${ACCENT}" stroke-width="2"/>`;
+  }
+  return s;
 }

@@ -376,6 +376,15 @@ h2 {
   width: 100%;
   height: 100%;
 }
+/* 선택 하이라이트 오버레이 — 클릭은 통과(아래 캔버스로). */
+.overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
 
 /* feature 목록 */
 .feature-list {
@@ -450,4 +459,22 @@ h2 {
 }
 .row label {
   color: var(--muted);
+}
+.delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 6px;
+  background: transparent;
+  color: #ff8d9e;
+  border: 1px solid #5a2530;
+  border-radius: 7px;
+  padding: 7px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.delete-btn:hover {
+  background: #2a1418;
+  border-color: #ff8d9e;
 }
