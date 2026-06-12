@@ -396,6 +396,15 @@ h2 {
 .overlay .vtx:active {
   cursor: grabbing;
 }
+/* 세그먼트 중점 '+' 추가 핸들 — 평소 옅고, hover 시 또렷. */
+.overlay .vtx-add {
+  pointer-events: auto;
+  cursor: copy;
+  opacity: 0.5;
+}
+.overlay .vtx-add:hover {
+  opacity: 1;
+}
 
 /* feature 목록 */
 .feature-list {
@@ -543,6 +552,12 @@ h2 {
   transform: translateX(18px);
 }
 
+.edit-hint {
+  margin: 2px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+}
 .delete-btn {
   display: flex;
   align-items: center;

@@ -236,17 +236,55 @@ export function App(): JSX.Element {
     };
   }, []);
 
-  // 오버레이 핸들 mousedown → 드래그 시작(이벤트 위임).
+  // 선택 피처의 좌표를 교체 커밋.
+  const commitCoords = (i: number, coords: [number, number][]): void => {
+    const f = fcRef.current;
+    if (!f) return;
+    setFc({
+      ...f,
+      features: f.features.map((x, k) => (k === i ? ({ ...x, geometry: { ...x.geometry, coordinates: coords } } as LayerFeature) : x)),
+    });
+    setDirty(true);
+  };
+
+  // 오버레이 핸들 상호작용(이벤트 위임):
+  //  - 제어점 핸들: 드래그 이동, Alt+클릭 = 삭제(최소 3점 유지)
+  //  - 세그먼트 중점 '+' 핸들: 그 자리에 제어점 삽입 후 바로 드래그
   const onOverlayDown = (e: MouseEvent): void => {
-    const v = (e.target as Element).getAttribute?.('data-vtx');
-    if (v == null) return;
+    const el = e.target as Element;
+    const vtx = el.getAttribute?.('data-vtx');
+    const mid = el.getAttribute?.('data-mid');
+    if (vtx == null && mid == null) return;
     e.stopPropagation();
     const i = selIdxRef.current;
     const f = fcRef.current;
     const ft = i != null ? f?.features[i] : null;
-    if (!ft) return;
-    dragVtxRef.current = Number(v);
-    dragCoordsRef.current = (ft.geometry.coordinates as [number, number][]).map((c) => [...c] as [number, number]);
+    if (!ft || i == null) return;
+    const coords = ft.geometry.coordinates as [number, number][];
+
+    if (mid != null) {
+      // 세그먼트 seg 와 seg+1 사이에 중점 제어점 삽입 → 바로 드래그.
+      const seg = Number(mid);
+      const a = coords[seg]!;
+      const b = coords[seg + 1]!;
+      const ins: [number, number] = [round((a[0] + b[0]) / 2), round((a[1] + b[1]) / 2)];
+      const next = coords.slice();
+      next.splice(seg + 1, 0, ins);
+      dragVtxRef.current = seg + 1;
+      dragCoordsRef.current = next.map((c) => [...c] as [number, number]);
+      draggedRef.current = false;
+      return;
+    }
+
+    const v = Number(vtx);
+    if (e.altKey) {
+      // 제어점 삭제 — 흐름 최소 3점 유지.
+      if (coords.length > 3) commitCoords(i, coords.filter((_, k) => k !== v));
+      return;
+    }
+    // 드래그 이동.
+    dragVtxRef.current = v;
+    dragCoordsRef.current = coords.map((c) => [...c] as [number, number]);
     draggedRef.current = false;
   };
 
@@ -531,6 +569,7 @@ export function App(): JSX.Element {
                         checked={sel.properties.dash === true}
                         onChange={(v) => updateProp('dash', v)}
                       />
+                      <p className="edit-hint">선 위 + 클릭으로 점 추가 · 점 Alt+클릭으로 삭제</p>
                     </>
                   ) : (
                     <>
@@ -748,6 +787,11 @@ const ACCENT = '#3fb6ab';
 const handleSvg = (vtx: number | null, x: number, y: number): string =>
   `<circle class="vtx"${vtx == null ? '' : ` data-vtx="${vtx}"`} cx="${x}" cy="${y}" r="5" fill="#0b1018" stroke="${ACCENT}" stroke-width="2"/>`;
 
+/** 세그먼트 중점의 '+' 고스트 핸들(제어점 추가용). */
+const midHandleSvg = (seg: number, x: number, y: number): string =>
+  `<g class="vtx-add" data-mid="${seg}"><circle data-mid="${seg}" cx="${x}" cy="${y}" r="6" fill="#0b1018" fill-opacity="0.6" stroke="${ACCENT}" stroke-opacity="0.55" stroke-width="1.5"/>` +
+  `<path data-mid="${seg}" d="M${x - 3},${y} H${x + 3} M${x},${y - 3} V${y + 3}" stroke="${ACCENT}" stroke-width="1.5" stroke-linecap="round"/></g>`;
+
 /**
  * 선택 피처의 외곽선 + 정점 핸들을 px SVG 문자열로.
  * 흐름(isFlow)이면 core 와 동일한 카디널 스플라인으로 곡선 미리보기.
@@ -780,6 +824,14 @@ function highlightSvg(geom: Geom, gi: GeoInstance, isFlow = false): string {
   // 제어점 핸들 — LineString 은 인덱스 보존(드래그 대상), 그 외는 인덱스 없이.
   if (isLine) {
     const ctrl = geom.coordinates as Pt[];
+    // 흐름이면 세그먼트 중점에 '+' 추가 핸들(제어점 핸들 아래에 깔아 우선순위 양보).
+    if (isFlow) {
+      for (let k = 0; k < ctrl.length - 1; k++) {
+        const a = gi.project(ctrl[k]![0], ctrl[k]![1]);
+        const b = gi.project(ctrl[k + 1]![0], ctrl[k + 1]![1]);
+        if (a && b) s += midHandleSvg(k, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
+      }
+    }
     for (let k = 0; k < ctrl.length; k++) {
       const p = gi.project(ctrl[k]![0], ctrl[k]![1]);
       if (p) s += handleSvg(k, p[0], p[1]);
