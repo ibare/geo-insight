@@ -102,10 +102,30 @@ export function emitGeometry(input: EmitInput): string {
     const layerPaths: string[] = [];
     for (const name of scene.layers ?? []) {
       for (const f of dataSource.layer(name)) {
+        const geomType = f.geometry.type;
+        // 점(Point)은 화면 일정 크기 마커라 emitAnnotations 에서 그린다 — 여기선 건너뜀.
+        if (geomType === 'Point' || geomType === 'MultiPoint') continue;
         const d = camera.path(f);
         if (!d) continue;
         const kind = f.properties.kind ?? 'warm';
         const color = layerColor(theme, kind);
+        // 범주/정량 면(Polygon) — 반투명 fill + 옅은 경계.
+        if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
+          layerPaths.push(
+            path(d, {
+              class: `gi-layer gi-layer-area gi-layer-${kind}`,
+              'data-layer': name,
+              'data-id': f.id,
+              fill: color,
+              'fill-opacity': '0.18',
+              stroke: color,
+              'stroke-opacity': '0.6',
+              'stroke-width': '1',
+              'vector-effect': 'non-scaling-stroke',
+            }),
+          );
+          continue;
+        }
         // 흐름 방향 그라데이션 — 시작(꼬리)은 투명, 끝(화살표)은 진함. 축은 시작점→끝점 투영.
         let stroke = color;
         if (f.geometry.type === 'LineString' && f.geometry.coordinates.length >= 2) {
@@ -205,43 +225,55 @@ export function emitAnnotations(input: EmitInput): string {
     out.push('</g>');
   }
 
-  // 레이어 주석(해류/바람) — 흐름선 끝 화살촉(진행 방향) + 중간점 한국어 라벨.
+  // 레이어 주석 — 선: 끝 화살촉 + 중간점 라벨 / 점: 마커 + 라벨.
   // 화면 일정 크기(annotationScale), 격리 모드 제외, globe 뒷면 컬링.
   if (!isolated && (scene.layers?.length ?? 0) > 0) {
     const halo = n2(2.5 * s);
     const arrows: string[] = [];
+    const markers: string[] = [];
     const labels: string[] = [];
     for (const name of scene.layers!) {
       for (const f of dataSource.layer(name)) {
-        if (f.geometry.type !== 'LineString') continue;
-        const coords = f.geometry.coordinates;
-        if (coords.length < 2) continue;
+        const gt = f.geometry.type;
         const kind = f.properties.kind ?? 'warm';
         const color = layerColor(theme, kind);
-        // 화살촉 — 끝점에, 마지막 세그먼트 방향(흐름 진행 방향). 굵은 해류는 화살촉도 크게.
-        const w = isCurrentKind(kind) ? 8 : 1.6; // 흐름선 두께(emitGeometry 와 일치)
-        const b = coords[coords.length - 1]!;
-        const a = coords[coords.length - 2]!;
-        if (camera.visible(b)) {
-          const pb = camera.project(b);
-          const pa = camera.project(a);
-          // 화살촉 치수를 선폭에 비례 — 길이 2.4w, 반폭 1.35w, 끝 캡 덮기 0.5w 연장.
-          if (pb && pa) arrows.push(arrowHead(pa, pb, w * 2.4 * s, w * 1.35 * s, w * 0.5 * s, color));
-        }
-        // 라벨 — 중간점 한국어 이름.
-        const mid = coords[Math.floor(coords.length / 2)]!;
-        if (f.properties.kor && camera.visible(mid)) {
-          const p = camera.project(mid);
-          if (p) {
-            const common = `x="${n2(p[0])}" y="${n2(p[1])}"`;
-            labels.push(
-              `<text ${common} class="gi-layer-label-halo" fill="none" stroke="${theme.label.halo}" stroke-width="${halo}" stroke-linejoin="round">${escapeText(f.properties.kor)}</text>`,
+        if (gt === 'LineString') {
+          const coords = f.geometry.coordinates;
+          if (coords.length < 2) continue;
+          // 화살촉 — 끝점, 마지막 세그먼트 방향. 굵은 해류는 화살촉도 크게.
+          const w = isCurrentKind(kind) ? 8 : 1.6;
+          const b = coords[coords.length - 1]!;
+          const a = coords[coords.length - 2]!;
+          if (camera.visible(b)) {
+            const pb = camera.project(b);
+            const pa = camera.project(a);
+            if (pb && pa) arrows.push(arrowHead(pa, pb, w * 2.4 * s, w * 1.35 * s, w * 0.5 * s, color));
+          }
+          // 라벨 — 중간점.
+          const mid = coords[Math.floor(coords.length / 2)]!;
+          if (f.properties.kor && camera.visible(mid)) {
+            const p = camera.project(mid);
+            if (p) labels.push(...layerLabel(p[0], p[1], f.properties.kor, color, theme.label.halo, halo));
+          }
+        } else if (gt === 'Point' || gt === 'MultiPoint') {
+          // 점 마커 — 흰 테두리 원. 크기는 properties.size 에 비례. 라벨은 마커 아래.
+          const pts = gt === 'Point' ? [f.geometry.coordinates] : f.geometry.coordinates;
+          const r = n2((3.5 + (Number(f.properties.size) || 1) * 1.4) * s);
+          for (const pt of pts) {
+            if (!camera.visible(pt)) continue;
+            const p = camera.project(pt);
+            if (!p) continue;
+            markers.push(
+              `<circle class="gi-layer-marker gi-layer-${kind}" data-layer="${escapeAttr(name)}" cx="${n2(p[0])}" cy="${n2(p[1])}" r="${r}" fill="${color}" stroke="${theme.label.halo}" stroke-width="${n2(1.5 * s)}"/>`,
             );
-            labels.push(`<text ${common} class="gi-layer-label" fill="${color}">${escapeText(f.properties.kor)}</text>`);
+            if (f.properties.kor) {
+              labels.push(...layerLabel(p[0], p[1] + r + theme.label.size * 0.9 * s, f.properties.kor, color, theme.label.halo, halo));
+            }
           }
         }
       }
     }
+    if (markers.length > 0) out.push(`<g class="gi-layer-markers">\n${markers.join('\n')}\n</g>`);
     if (arrows.length > 0) out.push(`<g class="gi-layer-arrows">\n${arrows.join('\n')}\n</g>`);
     if (labels.length > 0) {
       out.push(
@@ -314,6 +346,15 @@ function layerColor(theme: Theme, kind: string): string {
 /** 해류 흐름선(warm/cold)인지 — 굵은 대양 흐름으로 그릴 대상(바람과 구분). */
 function isCurrentKind(kind: string): boolean {
   return kind === 'warm' || kind === 'cold';
+}
+
+/** 레이어 라벨 — halo + fill 두 text. 화면 좌표(viewBox) 기준. */
+function layerLabel(x: number, y: number, text: string, color: string, halo: string, haloW: number): string[] {
+  const common = `x="${n2(x)}" y="${n2(y)}"`;
+  return [
+    `<text ${common} class="gi-layer-label-halo" fill="none" stroke="${halo}" stroke-width="${haloW}" stroke-linejoin="round">${escapeText(text)}</text>`,
+    `<text ${common} class="gi-layer-label" fill="${color}">${escapeText(text)}</text>`,
+  ];
 }
 
 /**

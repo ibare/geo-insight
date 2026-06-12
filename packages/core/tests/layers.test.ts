@@ -57,6 +57,31 @@ describe('layers — 큐레이션 레이어(해류) 파이프라인', () => {
     expect(svg).toContain('편서풍');
   });
 
+  it('점 레이어 → 마커(원) + 라벨, 면 레이어 → 반투명 폴리곤', () => {
+    const ds = createDefaultDataSource();
+    // 합성 데이터: 점 1개 + 면 1개.
+    ds.loadLayer('테스트', [
+      {
+        type: 'Feature',
+        id: 'pt:volcano',
+        properties: { name: 'Volcano', kor: '화산', kind: 'warm', size: 2 },
+        geometry: { type: 'Point', coordinates: [10, 20] },
+      },
+      {
+        type: 'Feature',
+        id: 'area:zone',
+        properties: { name: 'Zone', kor: '구역', kind: 'cold' },
+        geometry: { type: 'Polygon', coordinates: [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]] },
+      },
+    ]);
+    const { svg } = compile('earth:\n  layers: 테스트', { dataSource: ds });
+    expect(svg).toContain('gi-layer-marker'); // 점 마커
+    expect(svg).toContain('<circle');
+    expect(svg).toContain('gi-layer-area'); // 면
+    expect(svg).toContain('fill-opacity="0.18"');
+    expect(svg).toContain('화산');
+  });
+
   it('해류와 바람을 동시에 표시한다', () => {
     const ds = createDefaultDataSource();
     loadLayerFromDisk(ds, '해류');

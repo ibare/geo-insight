@@ -20,6 +20,14 @@ export interface MultiPolygonGeometry {
 
 export type CountryGeometry = PolygonGeometry | MultiPolygonGeometry;
 
+export interface PointGeometry {
+  type: 'Point';
+  coordinates: Position;
+}
+export interface MultiPointGeometry {
+  type: 'MultiPoint';
+  coordinates: Position[];
+}
 export interface LineStringGeometry {
   type: 'LineString';
   coordinates: Position[];
@@ -28,17 +36,27 @@ export interface MultiLineStringGeometry {
   type: 'MultiLineString';
   coordinates: Position[][];
 }
-/** 레이어 지오메트리 — 선(해류/경계), 면(기후대) 등. 점은 추후 확장. */
+/**
+ * 레이어 지오메트리 — 점(화산/도시), 선(해류/경계), 면(기후대/수심) 모두 담는다.
+ * GeoJSON 표준 기하 그대로 — 편집기가 출력하는 점/선/면이 이 형태로 들어온다.
+ */
 export type LayerGeometry =
+  | PointGeometry
+  | MultiPointGeometry
   | LineStringGeometry
   | MultiLineStringGeometry
   | PolygonGeometry
   | MultiPolygonGeometry;
 
 /**
- * 큐레이션 레이어 feature(해류 등) — 사용자 저작이 아닌, 앱이 제공하는 지리 데이터.
- * GeoFeature(국가 폴리곤)와 달리 선/면을 담고 properties 가 자유롭다.
- * 향후 전문가 편집기가 출력하는 GeoJSON 이 이 형태로 들어온다.
+ * 큐레이션 레이어 feature — 사용자 저작이 아닌, 앱(이후 전문가 편집기)이 제공하는
+ * 지리 데이터. 점/선/면을 담고 properties 로 유형별 변별을 표현한다.
+ *
+ * 편집기 데이터 유형(앞단 분류)과 properties 매핑:
+ *   - 흐름선/경계선: geometry=LineString, kind=색군/종류, (흐름선은 좌표 순서가 방향)
+ *   - 점 마커:       geometry=Point,      kind=범주, size=등급/크기
+ *   - 범주 면:       geometry=Polygon,    kind=범주
+ *   - 정량 필드:     geometry=Polygon,    value=연속 값(컬러스케일, 추후)
  */
 export interface LayerFeature {
   type: 'Feature';
@@ -46,8 +64,12 @@ export interface LayerFeature {
   properties: {
     name: string;
     kor: string;
-    /** 레이어별 분류 — 해류면 'warm'|'cold'. */
+    /** 분류/색군 — 해류면 'warm'|'cold', 점/면이면 범주. */
     kind?: string;
+    /** 점 마커 크기/등급(예: 화산 규모, 도시 인구 단계). */
+    size?: number;
+    /** 정량 값 — 컬러스케일용(수심·기온 등, 추후 렌더). */
+    value?: number;
     [key: string]: unknown;
   };
   geometry: LayerGeometry;

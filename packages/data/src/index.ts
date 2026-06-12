@@ -4,6 +4,8 @@ export type {
   MultiPolygonGeometry,
   CountryGeometry,
   GeoFeature,
+  PointGeometry,
+  MultiPointGeometry,
   LineStringGeometry,
   MultiLineStringGeometry,
   LayerGeometry,
