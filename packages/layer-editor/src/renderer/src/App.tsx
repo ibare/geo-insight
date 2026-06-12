@@ -3,7 +3,7 @@ import * as ToggleGroup from '@radix-ui/react-toggle-group';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { mount, type GeoInstance } from '@geoinsight/runtime';
 import type { LayerFeature } from '@geoinsight/data';
-import { Cursor, MapPin, LineSegments, Polygon, FloppyDisk, Plus } from '@phosphor-icons/react';
+import { Cursor, MapPin, LineSegments, Polygon, FloppyDisk, Plus, UploadSimple } from '@phosphor-icons/react';
 
 type LayerIndex = Record<string, { file: string; kind: string }>;
 type FC = { type: string; features: LayerFeature[]; [k: string]: unknown };
@@ -27,6 +27,8 @@ export function App(): JSX.Element {
   const [draft, setDraft] = useState<[number, number][]>([]);
   const [creating, setCreating] = useState(false);
   const [nl, setNl] = useState({ name: '', file: '', kind: 'flow' });
+  const [pending, setPending] = useState<{ file: string; kind: 'new' | 'modified' }[]>([]);
+  const [publishErr, setPublishErr] = useState<string[] | null>(null);
 
   // loadLayer/키 핸들러 클로저가 최신 상태를 보도록 ref 미러.
   const fcRef = useRef<FC | null>(fc);
@@ -38,12 +40,20 @@ export function App(): JSX.Element {
   const toolRef = useRef<Tool>(tool);
   toolRef.current = tool;
 
-  // 레이어 목록(index.json).
+  const refreshStatus = (): void => {
+    window.geoApi
+      .status()
+      .then(setPending)
+      .catch(() => setPending([]));
+  };
+
+  // 레이어 목록(index.json) + 미배포 상태.
   useEffect(() => {
     window.geoApi
       .index()
       .then(setIndex)
       .catch(() => setIndex({}));
+    refreshStatus();
   }, []);
 
   const dsl = active.length > 0 ? `earth:\n  layers: ${active.join(', ')}` : 'earth:';
@@ -149,6 +159,25 @@ export function App(): JSX.Element {
     if (!file) return;
     await window.geoApi.write(file, fc);
     setDirty(false);
+    refreshStatus();
+  };
+
+  const publish = async (): Promise<void> => {
+    const r = await window.geoApi.publish();
+    if (!r.ok) {
+      setPublishErr(r.errors);
+      return;
+    }
+    setPublishErr(null);
+    refreshStatus();
+  };
+
+  const revert = async (): Promise<void> => {
+    if (!confirm('작업본을 폐기하고 원본 상태로 되돌립니다. 저장하지 않은 편집은 사라집니다.')) return;
+    await window.geoApi.revert();
+    setPublishErr(null);
+    refreshStatus();
+    if (editing) void openLayer(editing); // 열린 레이어 다시 로드
   };
 
   const createLayer = async (): Promise<void> => {
@@ -159,6 +188,7 @@ export function App(): JSX.Element {
     setIndex(idx);
     setCreating(false);
     setNl({ name: '', file: '', kind: 'flow' });
+    refreshStatus();
     void openLayer(name);
   };
 
@@ -209,11 +239,34 @@ export function App(): JSX.Element {
             <Polygon />
           </ToolItem>
         </ToggleGroup.Root>
-        <button className="save-btn" disabled={!dirty} onClick={() => void save()}>
-          <FloppyDisk weight="fill" size={15} />
-          {dirty ? '저장 *' : '저장됨'}
-        </button>
+        <div className="bar-right">
+          <button className="ghost-btn" onClick={() => void revert()} disabled={pending.length === 0}>
+            되돌리기
+          </button>
+          <button className="publish-btn" onClick={() => void publish()} disabled={pending.length === 0}>
+            <UploadSimple weight="bold" size={15} />
+            {pending.length > 0 ? `배포 ${pending.length}` : '배포됨'}
+          </button>
+          <button className="save-btn" disabled={!dirty} onClick={() => void save()}>
+            <FloppyDisk weight="fill" size={15} />
+            {dirty ? '저장 *' : '저장됨'}
+          </button>
+        </div>
       </header>
+
+      {publishErr && (
+        <div className="publish-error">
+          <span className="pe-title">배포 실패 — 검증 오류</span>
+          <ul>
+            {publishErr.map((e, i) => (
+              <li key={i}>{e}</li>
+            ))}
+          </ul>
+          <button className="pe-close" onClick={() => setPublishErr(null)}>
+            닫기
+          </button>
+        </div>
+      )}
 
       <div className="body">
         <aside className="left">
