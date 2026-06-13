@@ -37,6 +37,35 @@ describe('zoom-pan — 줌아웃 한계', () => {
     // 최대 줌아웃 시 뷰 높이 = sphere 높이(세로 cover, 가로는 wrap 으로 탐색).
     expect(ctrl.getView()[3]).toBeCloseTo(500, 2);
   });
+
+  it('coverVertical(flat): 줌아웃+팬 해도 viewBox 가 sphere(outer) 밖으로 안 나간다', () => {
+    const svg = document.createElementNS(SVG_NS, 'svg') as SVGSVGElement;
+    const base: ViewBox = [0, 0, 100, 60];
+    const outer: ViewBox = [-1000, -250, 2000, 500];
+    const ctrl = attachZoomPan(svg, base, { interactive: false, outerBounds: outer, coverVertical: true });
+    // 최대 줌아웃 + 우/하단으로 끝까지 팬 시도 — 우변·하변이 sphere 경계를 못 넘는다.
+    ctrl.setView([99999, 99999, 9999, 9999]);
+    const [x, y, w, h] = ctrl.getView();
+    expect(x + w).toBeLessThanOrEqual(outer[0] + outer[2] + 1e-6);
+    expect(y + h).toBeLessThanOrEqual(outer[1] + outer[3] + 1e-6);
+    // 좌/상단으로 끝까지 팬해도 좌변·상변이 경계 밖으로 안 나간다.
+    ctrl.setView([-99999, -99999, w, h]);
+    const v2 = ctrl.getView();
+    expect(v2[0]).toBeGreaterThanOrEqual(outer[0] - 1e-6);
+    expect(v2[1]).toBeGreaterThanOrEqual(outer[1] - 1e-6);
+  });
+
+  it('coverVertical(flat): base 가 sphere 보다 가로로 길면 가로(outer.w)에서 먼저 멈춘다', () => {
+    const svg = document.createElementNS(SVG_NS, 'svg') as SVGSVGElement;
+    const base: ViewBox = [0, 0, 100, 20]; // aspect 0.2 < sphere aspect 0.25
+    const outer: ViewBox = [-1000, -250, 2000, 500];
+    const ctrl = attachZoomPan(svg, base, { interactive: false, outerBounds: outer, coverVertical: true });
+    ctrl.setView([0, 0, 9999, 9999]);
+    const [, , w, h] = ctrl.getView();
+    // 가로가 먼저 sphere 에 닿아 멈춤(min) → 폭 = outer.w, 세로는 sphere 안.
+    expect(w).toBeCloseTo(2000, 2);
+    expect(h).toBeLessThanOrEqual(500 + 1e-6);
+  });
 });
 
 describe('전세계 범위 — 단일 국가 fit 이어도 sphere 범위는 훨씬 크다', () => {

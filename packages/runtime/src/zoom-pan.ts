@@ -64,10 +64,13 @@ export function attachZoomPan(
   const aspect = base[3] / base[2];
   const outer = opts.outerBounds ?? base;
   const minW = base[2] / maxZoom;
-  // 줌아웃 최대치. flat(coverVertical)은 세로 cover 까지만 — 가로 전체(outer[2])를
-  // 제외해 2:1 전세계가 보이며 위아래가 비는 걸 막는다. globe 는 가로·세로 모두 cover.
+  // 줌아웃 최대치. flat(coverVertical)은 viewBox 가 sphere(outer) 를 어느 한 축이라도
+  // 덮는 지점까지만 — 가로(outer[2])·세로(outer[3]/aspect) 중 먼저 닿는(=작은) 쪽에서
+  // 멈춰, 상/하/좌/우 어느 방향도 sphere 밖으로 나가 빈 공간이 생기지 않게 한다.
+  // base 보다 작아지지 않도록 max 로 바닥을 깐다(초기 fit 이 더 줌인이면 그 값 유지).
+  // globe 는 전체 디스크가 보이게 가로·세로 모두 cover(디스크 밖은 우주 배경).
   const maxW = opts.coverVertical
-    ? Math.max(base[2], outer[3] / aspect)
+    ? Math.max(base[2], Math.min(outer[2], outer[3] / aspect))
     : Math.max(base[2], outer[2], outer[3] / aspect);
 
   let view: ViewBox = [...base] as ViewBox;
@@ -80,9 +83,19 @@ export function attachZoomPan(
     // 너비 클램프 + 종횡비 고정(base 비율 유지)
     const w = clamp(v[2], minW, maxW);
     const h = w * aspect;
-    // 팬 가능 영역: 전세계 범위 + 한 화면만큼의 여유.
-    const x = clamp(v[0], outer[0] - w, outer[0] + outer[2]);
-    const y = clamp(v[1], outer[1] - h, outer[1] + outer[3]);
+    let x: number;
+    let y: number;
+    if (opts.coverVertical) {
+      // flat — viewBox 를 sphere(outer) 안에 가둔다. 어느 변도 경계를 못 넘으므로
+      // 바다색 빈 공간이 어느 방향으로도 노출되지 않는다. 종횡비 차로 한 축이 sphere
+      // 보다 크면 그 축은 중앙 고정(여백 대칭·불변), 작으면 sphere 내부에서만 팬.
+      x = w >= outer[2] ? outer[0] - (w - outer[2]) / 2 : clamp(v[0], outer[0], outer[0] + outer[2] - w);
+      y = h >= outer[3] ? outer[1] - (h - outer[3]) / 2 : clamp(v[1], outer[1], outer[1] + outer[3] - h);
+    } else {
+      // globe — 디스크 주변 우주 배경이 의도된 여백이므로 한 화면만큼 여유를 둔다.
+      x = clamp(v[0], outer[0] - w, outer[0] + outer[2]);
+      y = clamp(v[1], outer[1] - h, outer[1] + outer[3]);
+    }
     const zoomChanged = Math.abs(w - view[2]) > 1e-6;
     view = [x, y, w, h];
     applyView();
@@ -167,8 +180,8 @@ export function attachZoomPan(
 
   return {
     reset() {
-      view = [...base] as ViewBox;
-      applyView();
+      // base 가 contain 한계를 벗어나면(전세계 fit 의 여백 등) 클램프되도록 setView 경유.
+      setView([...base] as ViewBox);
     },
     zoomToBox(box, pad = 0.15) {
       const padX = box.width * pad;
