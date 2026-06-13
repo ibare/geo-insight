@@ -23,6 +23,7 @@ earth:
 | `@geoinsight/runtime` | 바닐라 DOM 마운트 + 줌/팬. 프레임워크 0 | `@geoinsight/core` |
 | `@geoinsight/host-tiptap` | Tiptap 펜스 블록 익스텐션 (소스) | core, runtime; peer `@tiptap/*` |
 | `@geoinsight/tiptap` | 위 전체를 인라인한 self-contained ESM 번들 (npm 배포) | peer `@tiptap/core`, `@tiptap/pm` |
+| `@geoinsight/layer-editor` | 환경 레이어(해류·바람 등 흐름) 데이터 편집기 (Electron 데스크탑) | core, runtime, data; electron, react, radix |
 
 ## DSL
 
@@ -126,6 +127,47 @@ const fenceLangToExtension = { /* … */ geoinsight: 'geoinsight' };
 - 마크다운 round-trip: `geoInsightNodeToMarkdown(source, { height })` ↔ `GEOINSIGHT_FENCE_RE`.
 - 높이 영속: `data-height` attr (하단 핸들 드래그로 갱신).
 - peer: `@tiptap/core`, `@tiptap/pm` 둘뿐 (React 불요).
+
+## 레이어 에디터 (`@geoinsight/layer-editor`)
+
+해류·바람 같은 **환경 레이어 데이터**를 지도 위에서 직접 그려 편집하는 Electron 데스크탑 앱.
+전문가(도메인 전문가, 디자이너 아님)가 데이터를 입력하면 `methii`가 그대로 렌더한다.
+
+```bash
+pnpm --filter @geoinsight/layer-editor dev    # 개발 실행
+pnpm --filter @geoinsight/layer-editor build  # electron-vite 빌드
+```
+
+### 흐름(flow) 프리미티브
+
+해류·바람·(작전도의) 공격축처럼 **굵기·색·굴곡·방향·화살촉을 가진 흐름 화살표**는 의미 중립
+파라메트릭 오브젝트다. `kind`만 바꾸면 무엇이든 된다. 사용자는 모양을 그리는 게 아니라,
+**시스템이 강제하는 곡선 위에서 길이·굴곡·두께·색만** 조절한다 — 누가 그려도 스타일·품질이 동일하다.
+
+```json
+{
+  "type": "Feature",
+  "geometry": { "type": "LineString", "coordinates": [[제어점], …] },
+  "properties": { "prim": "flow", "kind": "warm", "width": 8, "arrow": true, "dash": false, "kor": "쿠로시오 해류" }
+}
+```
+
+- **geometry = 중심선 제어점**(최소 3점), **properties = 표현 파라미터**. 무손실 저장·복원.
+- 보간은 `core`의 `cardinalSpline`(Catmull-Rom)을 편집기·렌더가 **공유** — 편집 중 곡선 = methii 곡선.
+- 편집: 캔버스 직접 선택 → 제어점 드래그(끝점=길이, 중간=굴곡), 세그먼트 `+`로 중간점 추가,
+  Alt+클릭으로 삭제. 두께 슬라이더·화살촉/점선 토글·`kind` 색 스와치.
+
+### 데이터 모델 (A 모델)
+
+편집 대상은 `@geoinsight/data`의 빌드 자산(`packages/data/assets/layers/*.json`)이다.
+`편집 → 저장 → git → @geoinsight/* 빌드 → methii` 로 직접 이어진다.
+
+원본 직접 편집의 위험은 **작업본 분리(스테이징)**로 막는다:
+
+- 편집·저장은 `userData/layers-workspace` 샌드박스에서만.
+- **`배포`** 버튼으로만 원본에 반영 — 스키마 검증 통과 시 원자적 쓰기.
+- **`시드 교체`**로 원본 → 작업본 재시드(원본이 외부에서 갱신됐을 때).
+- `GEO_LAYERS_DIR` 환경변수로 편집 대상 디렉터리 오버라이드 가능.
 
 ## 개발
 
