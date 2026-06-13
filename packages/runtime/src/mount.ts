@@ -34,6 +34,7 @@ import {
 } from '@geoinsight/core';
 import { attachZoomPan, type ViewBox, type ZoomPanController } from './zoom-pan.js';
 import { attachEditing, type EditingController } from './editing.js';
+import { applyViewState, captureViewState, type ViewState } from './view-state.js';
 
 export interface MountOptions extends InternalOptions {
   /** 줌/회전 상호작용 활성화. 기본 true. */
@@ -96,15 +97,11 @@ function layersFor(src: string): string[] {
 }
 
 /**
- * 재렌더 시 현재 뷰포트(카메라 + 줌/팬)를 보존하기 위한 스냅샷.
- * 클릭 편집(show 추가/제거 등)에서 fitExtent 재프레이밍을 막아 화면이 점프하지 않게 한다.
+ * 재렌더 시 "보고 있는 곳"을 보존하기 위한 투영 독립 뷰 상태(중심 경위도 + 줌).
+ * 절대 픽셀 카메라가 아니라 의미 단위라, 투영 전환(flat↔globe)·리사이즈에서도 같은
+ * 중심·줌이 유지된다. 환산은 view-state.ts 의 capture/applyViewState 가 담당.
  */
-interface Preserve {
-  view: ViewBox;
-  rotate: Rotate;
-  scale: number;
-  translate: [number, number];
-}
+type Preserve = ViewState;
 
 export function mount(
   el: HTMLElement,
@@ -134,6 +131,23 @@ export function mount(
   const compileOpts: MountOptions = { ...opts, dataSource, resolver };
   const adm1InFlight = new Set<string>();
   const layerInFlight = new Set<string>();
+
+  // 컨테이너 실측 크기로 viewBox 를 만든다 — viewBox 종횡비를 DOM 컨테이너에 맞춰
+  // preserveAspectRatio(meet) 레터박스(바다색 빈 띠)를 없앤다. 레이아웃 전(0)이면
+  // 빈 객체로 core 기본값(960×576)을 쓴다. 마지막 측정값은 종횡비 변화 감지에 보관.
+  let lastW = 0;
+  let lastH = 0;
+  let resizeRaf = 0;
+  const measureViewport = (): { width?: number; height?: number } => {
+    const width = Math.round(el.clientWidth);
+    const height = Math.round(el.clientHeight);
+    if (width > 0 && height > 0) {
+      lastW = width;
+      lastH = height;
+      return { width, height };
+    }
+    return {};
+  };
 
   const teardown = (): void => {
     if (rotateRaf) {
@@ -326,14 +340,18 @@ export function mount(
   const render = (input: string | CompileResult, preserve?: Preserve): void => {
     if (destroyed) return;
     // 문자열이면 모델을 빌드해 캐시(회전 재투영용). 미리 컴파일된 결과는 정적 렌더.
+    let appliedView: ViewBox | null = null;
     if (typeof input === 'string') {
-      model = buildModel(input, compileOpts);
-      // 뷰포트 보존(클릭 편집) — fixed 로 fitExtent 를 건너뛰어 카메라가 점프하지 않게 한다.
-      result = preserve
-        ? renderModel(model, {
-            fixed: { rotate: preserve.rotate, scale: preserve.scale, translate: preserve.translate },
-          })
-        : renderModel(model);
+      model = buildModel(input, { ...compileOpts, ...measureViewport() });
+      // 뷰 보존 — 중심 경위도+줌을 현재 투영·viewBox 에 맞춰 카메라+초기 viewBox 로 환산.
+      // 투영 전환·리사이즈에도 같은 곳이 화면에 유지된다(절대 카메라 보존의 비틀림 없음).
+      if (preserve) {
+        const applied = applyViewState(model, preserve);
+        result = applied.result;
+        appliedView = applied.view;
+      } else {
+        result = renderModel(model);
+      }
     } else {
       model = null;
       result = input;
@@ -375,8 +393,8 @@ export function mount(
       coverVertical: flat,
       ...(interactive && model ? { onRotate, onRotateEnd, onZoom } : {}),
     });
-    // 클릭 편집이면 직전 줌/팬 상태를 그대로 복원(카메라는 fixed 로 이미 고정됨).
-    if (preserve) controller.setView(preserve.view);
+    // 보존된 뷰가 있으면 환산된 초기 viewBox 로 복원(setView 가 contain 클램프 적용).
+    if (appliedView) controller.setView(appliedView);
 
     if (opts.editable && currentSource != null) {
       if (!locator) locator = createLocator();
@@ -392,13 +410,8 @@ export function mount(
           // 클릭 편집은 현재 뷰포트(카메라+줌/팬)를 캡처해 보존 — 선택 시 화면이 점프하지 않게.
           // reframe(showOnly 진입/나가기)이면 보존을 건너뛰고 새 프레임에 fit 한다.
           const preserve: Preserve | undefined =
-            !editOpts?.reframe && controller && base
-              ? {
-                  view: controller.getView(),
-                  rotate: [rotate[0], rotate[1]],
-                  scale: base.scale,
-                  translate: [base.translate[0], base.translate[1]],
-                }
+            !editOpts?.reframe && controller && result
+              ? (captureViewState(result.meta, controller.getView()) ?? undefined)
               : undefined;
           void ensureAndRender(next, preserve);
           opts.onChange?.(next);
@@ -409,20 +422,37 @@ export function mount(
 
   void ensureAndRender(src);
 
+  // 컨테이너 종횡비가 바뀌면(반응형 레이아웃·높이 핸들 드래그) viewBox 종횡비를 다시
+  // 맞춰야 레터박스가 안 생긴다. 같은 비율의 확대/축소는 SVG 100% stretch 가 알아서
+  // 처리하므로 건너뛴다(줌/팬 상태 보존). 비율 변화 시에만 새 fit 으로 재렌더.
+  const resizeObserver =
+    typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(() => {
+          if (destroyed || currentSource == null) return;
+          const width = Math.round(el.clientWidth);
+          const height = Math.round(el.clientHeight);
+          if (width <= 0 || height <= 0) return;
+          const prev = lastH > 0 ? lastW / lastH : 0;
+          const next = width / height;
+          if (lastW > 0 && Math.abs(next - prev) < 1e-3) return;
+          if (resizeRaf) cancelAnimationFrame(resizeRaf);
+          resizeRaf = requestAnimationFrame(() => {
+            if (destroyed || currentSource == null) return;
+            // 종횡비가 바뀌어도 보고 있던 중심·줌은 유지(투영 독립 뷰 상태로 보존).
+            const vs = result && controller ? (captureViewState(result.meta, controller.getView()) ?? undefined) : undefined;
+            void ensureAndRender(currentSource, vs);
+          });
+        })
+      : null;
+  resizeObserver?.observe(el);
+
   return {
     update(next) {
       if (typeof next === 'string') currentSource = next;
       // 소스 갱신은 현재 뷰(카메라+줌/팬)를 보존 — 편집/레이어 갱신이 화면을 점프시키지
       // 않게. 의도적 재프레이밍은 reset() 담당.
       const preserve: Preserve | undefined =
-        controller && base
-          ? {
-              view: controller.getView(),
-              rotate: [rotate[0], rotate[1]],
-              scale: base.scale,
-              translate: [base.translate[0], base.translate[1]],
-            }
-          : undefined;
+        controller && result ? (captureViewState(result.meta, controller.getView()) ?? undefined) : undefined;
       void ensureAndRender(next, preserve);
     },
     unproject(clientX, clientY) {
@@ -474,14 +504,9 @@ export function mount(
       return [(p[0] - view[0]) * scale + offX, (p[1] - view[1]) * scale + offY];
     },
     setLayerData(name, features) {
-      if (!result || !controller || !base) return;
+      if (!result || !controller) return;
       dataSource.loadLayer(name, features); // replace
-      render(currentSource ?? '', {
-        view: controller.getView(),
-        rotate: [rotate[0], rotate[1]],
-        scale: base.scale,
-        translate: [base.translate[0], base.translate[1]],
-      });
+      render(currentSource ?? '', captureViewState(result.meta, controller.getView()) ?? undefined);
     },
     zoomTo(entityKey) {
       if (!svg || !controller) return;
@@ -510,6 +535,8 @@ export function mount(
     },
     destroy() {
       destroyed = true;
+      resizeObserver?.disconnect();
+      if (resizeRaf) cancelAnimationFrame(resizeRaf);
       teardown();
       el.innerHTML = '';
       svg = null;
