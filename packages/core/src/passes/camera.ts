@@ -101,7 +101,14 @@ export function createCamera(entities: Entity[], config: SceneConfig, opts: Came
       rotate = [-centerLon, 0];
       projection.rotate(rotate);
       const fitObject = fitGeometry(config, entities, centerLon);
-      projection.fitExtent(extent, fitObject as never);
+      if (config.fit.mode === 'world') {
+        // 전세계 표시 — sphere 가 viewBox 를 꽉 덮도록(cover) fit 한다. fitExtent(meet)는
+        // 2:1 sphere 를 뷰포트에 내접시켜 위·아래(또는 좌·우)에 여백을 남기는데, 줌아웃
+        // contain 한계와 맞물려 그 여백을 없앨 수 없으므로 처음부터 cover 로 채운다.
+        fitCover(projection, width, height, fitObject);
+      } else {
+        projection.fitExtent(extent, fitObject as never);
+      }
     }
     scale = projection.scale();
     const t = projection.translate();
@@ -221,6 +228,36 @@ function fitGeometry(config: SceneConfig, entities: Entity[], _centerLon: number
   }
   if (features.length === 0) return { type: 'Sphere' };
   return { type: 'FeatureCollection', features };
+}
+
+/**
+ * cover fit — object 가 viewBox(width×height)를 빈틈없이 덮도록 scale/translate 설정.
+ * d3 의 fitExtent 는 meet(내접, 여백 발생)만 지원하므로, scale=1 기준 bounds 로 cover
+ * 배율(짧은 축이 채워지는 max 비율)을 구한 뒤 중심을 viewBox 중앙에 맞춘다. rotate 는
+ * 호출부에서 이미 적용된 상태를 유지한다(scale/translate 만 건드림).
+ */
+function fitCover(projection: Projection, width: number, height: number, object: unknown): void {
+  projection.scale(1).translate([0, 0]);
+  const b0 = geoPath(projection).bounds(object as never);
+  const w0 = b0[1][0] - b0[0][0];
+  const h0 = b0[1][1] - b0[0][1];
+  if (!(w0 > 0) || !(h0 > 0)) {
+    // 폴백 — 비유한/퇴화 bounds 면 기존 meet fit 으로.
+    projection.fitExtent(
+      [
+        [0, 0],
+        [width, height],
+      ],
+      object as never,
+    );
+    return;
+  }
+  projection.scale(Math.max(width / w0, height / h0));
+  const b1 = geoPath(projection).bounds(object as never);
+  projection.translate([
+    (width - (b1[1][0] + b1[0][0])) / 2,
+    (height - (b1[1][1] + b1[0][1])) / 2,
+  ]);
 }
 
 function bboxPolygon([w, s, e, n]: [number, number, number, number]): unknown {
