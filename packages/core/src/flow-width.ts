@@ -16,10 +16,18 @@
  */
 
 export interface FlowWidthParams {
-  /** 이 화면 두께(px) 미만이면 숨김 — 가시 임계(63빌딩 한계). */
+  /** 이 화면 두께(px) 미만이면 도형 숨김 — 가시 임계(63빌딩 한계). */
   hideBelowPx: number;
-  /** hideBelowPx~fadeToPx 구간을 opacity 0→1 로 페이드(임계 근처 깜빡임 방지). */
+  /** hideBelowPx~fadeToPx 구간을 도형 opacity 0→1 로 페이드(임계 근처 깜빡임 방지). */
   fadeToPx: number;
+  /**
+   * 라벨 숨김 임계(px) — 도형 화면 두께가 이 미만이면 라벨만 제거(도형은 남긴다).
+   * 라벨은 도형보다 높은 임계를 둔다: 읽을 수 없는 크기의 이름표는 의미가 0이고,
+   * 무명 도형은 "이게 뭐지? 확대해보자"는 탐색을 유발(detail-on-demand). hideBelowPx 보다 큼.
+   */
+  labelHidePx: number;
+  /** labelHidePx~labelFadePx 구간을 라벨 opacity 0→1 로 페이드. */
+  labelFadePx: number;
   /** 렌더 두께 하한(px). */
   minPx: number;
   /** 렌더 두께 상한(px) — 줌인 과굵기 방지. */
@@ -30,10 +38,12 @@ export interface FlowWidthParams {
   refPxPerKm: number;
 }
 
-/** 튜닝 시작점 — 실폭 비례(gamma=1) + 1px 가시 임계 + 16px 상한. */
+/** 튜닝 시작점 — 실폭 비례(gamma=1) + 1px 도형 임계 + 4px 라벨 임계 + 16px 상한. */
 export const DEFAULT_FLOW_WIDTH_PARAMS: FlowWidthParams = {
   hideBelowPx: 1,
   fadeToPx: 2,
+  labelHidePx: 4,
+  labelFadePx: 7,
   minPx: 1,
   maxPx: 16,
   gamma: 1,
@@ -41,12 +51,16 @@ export const DEFAULT_FLOW_WIDTH_PARAMS: FlowWidthParams = {
 };
 
 export interface FlowWidthResult {
-  /** 표시 여부(화면 두께가 가시 임계 이상). */
+  /** 도형(본체·화살촉) 표시 여부 — 화면 두께가 hideBelowPx 이상. */
   visible: boolean;
   /** 렌더할 화면 두께(px) — 흐름 본체 stroke-width 와 화살촉 크기의 기준. */
   strokeWidthPx: number;
-  /** 페이드 opacity(0~1). */
+  /** 도형 페이드 opacity(0~1). */
   opacity: number;
+  /** 라벨 표시 여부 — 화면 두께가 labelHidePx 이상(도형보다 높은 임계). */
+  labelVisible: boolean;
+  /** 라벨 페이드 opacity(0~1) — 도형과 독립. */
+  labelOpacity: number;
 }
 
 /**
@@ -58,7 +72,9 @@ export interface FlowWidthResult {
  * @param pxPerKm   현재 줌에서 화면 1km 당 픽셀 수
  */
 export function resolveFlowWidth(widthKm: number, pxPerKm: number, p: FlowWidthParams): FlowWidthResult {
-  if (!(widthKm > 0) || !(pxPerKm > 0)) return { visible: false, strokeWidthPx: p.minPx, opacity: 0 };
+  if (!(widthKm > 0) || !(pxPerKm > 0)) {
+    return { visible: false, strokeWidthPx: p.minPx, opacity: 0, labelVisible: false, labelOpacity: 0 };
+  }
 
   // 가시성은 '실제 물리 두께'로 — 정책(gamma/clamp) 튜닝과 무관하게 일관.
   const physicalPx = widthKm * pxPerKm;
@@ -72,6 +88,9 @@ export function resolveFlowWidth(widthKm: number, pxPerKm: number, p: FlowWidthP
     visible: physicalPx >= p.hideBelowPx,
     strokeWidthPx,
     opacity: smoothstep(p.hideBelowPx, p.fadeToPx, physicalPx),
+    // 라벨은 더 높은 임계 — 도형은 보여도 라벨은 먼저 사라진다(이중 가시성).
+    labelVisible: physicalPx >= p.labelHidePx,
+    labelOpacity: smoothstep(p.labelHidePx, p.labelFadePx, physicalPx),
   };
 }
 

@@ -8,8 +8,10 @@ const FLOW_PARAM_DEFS: Array<{ key: keyof FlowWidthParams; label: string; min: n
   { key: 'gamma', label: '줌 감도 γ (1=실폭, 0=고정)', min: 0, max: 1, step: 0.05 },
   { key: 'minPx', label: '최소 두께(px)', min: 0.5, max: 6, step: 0.5 },
   { key: 'maxPx', label: '최대 두께(px)', min: 4, max: 48, step: 1 },
-  { key: 'hideBelowPx', label: '가시 임계(px)', min: 0.5, max: 4, step: 0.25 },
-  { key: 'fadeToPx', label: '페이드 끝(px)', min: 1, max: 8, step: 0.25 },
+  { key: 'hideBelowPx', label: '도형 가시 임계(px)', min: 0.5, max: 4, step: 0.25 },
+  { key: 'fadeToPx', label: '도형 페이드 끝(px)', min: 1, max: 8, step: 0.25 },
+  { key: 'labelHidePx', label: '라벨 가시 임계(px)', min: 1, max: 12, step: 0.5 },
+  { key: 'labelFadePx', label: '라벨 페이드 끝(px)', min: 2, max: 16, step: 0.5 },
   { key: 'refPxPerKm', label: '기준 해상도(px/km)', min: 0.01, max: 0.2, step: 0.005 },
 ];
 

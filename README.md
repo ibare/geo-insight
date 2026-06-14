@@ -169,6 +169,9 @@ pnpm --filter @geoinsight/layer-editor build  # electron-vite 빌드
 
 - **폭이 좁은 해류는 줌아웃하면 화면 1px 미만이 되어 자동으로 사라지고**(63빌딩이 100km 상공에선
   안 보이듯), 줌인하면 다시 나타난다. 굵은 대양 경계류(쿠로시오 등)는 줌아웃에도 남는다.
+- **라벨은 도형보다 높은 임계로 먼저 사라진다**(이중 가시성, `labelHidePx`/`labelFadePx`). 도형(흐름선)은
+  보여도 이름표는 먼저 빠진다 — 읽을 수 없는 크기의 라벨은 의미가 0이고, 무명 도형은 "이게 뭐지?
+  확대해보자"는 탐색을 유발(detail-on-demand). 도형과 라벨은 각자 opacity 그룹으로 페이드한다.
 - 줌인 굵기 정책(실폭 비례 ↔ 화면 고정)·가시 임계·페이드는 `core`의 `resolveFlowWidth` /
   `FlowWidthParams`(`gamma`·`min/maxPx`·`hideBelowPx`·`fadeToPx`)로 결정 — 정답을 코드에 박지 않고
   **라이브로 튜닝**한다(플레이그라운드 "흐름 튜닝" 슬라이더, `setFlowParams`).

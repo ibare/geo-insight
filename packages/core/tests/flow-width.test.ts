@@ -50,6 +50,34 @@ describe('resolveFlowWidth — 줌 감도(gamma)', () => {
   });
 });
 
+describe('resolveFlowWidth — 라벨 이중 임계', () => {
+  it('라벨 임계가 도형 임계보다 높다(라벨이 먼저 사라짐)', () => {
+    expect(P.labelHidePx).toBeGreaterThan(P.hideBelowPx);
+  });
+
+  it('도형은 보이지만 두께가 라벨 임계 미만이면 라벨만 숨김', () => {
+    // physicalPx = 2px: 도형 visible(≥1) 이지만 라벨 hidden(<4)
+    const r = resolveFlowWidth(100, 0.02, P);
+    expect(r.visible).toBe(true);
+    expect(r.labelVisible).toBe(false);
+  });
+
+  it('충분히 굵으면 도형과 라벨 모두 표시', () => {
+    // physicalPx = 5px ≥ labelHidePx(4)
+    const r = resolveFlowWidth(100, 0.05, P);
+    expect(r.visible).toBe(true);
+    expect(r.labelVisible).toBe(true);
+  });
+
+  it('라벨 opacity 가 labelHidePx~labelFadePx 구간에서 0→1', () => {
+    const mid = resolveFlowWidth(100, 0.05, P); // 5px (4~7 사이)
+    expect(mid.labelVisible).toBe(true);
+    expect(mid.labelOpacity).toBeGreaterThan(0);
+    expect(mid.labelOpacity).toBeLessThan(1);
+    expect(resolveFlowWidth(100, 0.08, P).labelOpacity).toBe(1); // 8px ≥ 7
+  });
+});
+
 describe('resolveFlowWidth — 클램프 / 페이드', () => {
   it('렌더 두께는 [minPx, maxPx] 로 클램프', () => {
     expect(resolveFlowWidth(100, 1, { ...P, maxPx: 16 }).strokeWidthPx).toBe(16); // 100px → 16

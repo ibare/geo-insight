@@ -328,6 +328,9 @@ export function emitFlows(input: EmitInput): string {
       const r = resolveFlowWidth(widthKm, pxPerKm, params);
       if (interactive && !r.visible) continue; // 폭이 좁아 현재 줌에서 1px 미만 → 사라짐
       const opacity = interactive ? r.opacity : 1;
+      // 라벨은 도형보다 높은 임계 — 도형은 보여도 라벨은 먼저 사라진다(정적은 항상 표시).
+      const labelVisible = !interactive || r.labelVisible;
+      const labelOpacity = interactive ? r.labelOpacity : 1;
 
       const isFlow = f.properties.prim === 'flow';
       const coords = isFlow ? cardinalSpline(f.geometry.coordinates as FlowPt[]) : f.geometry.coordinates;
@@ -380,16 +383,27 @@ export function emitFlows(input: EmitInput): string {
         }
       }
 
-      // 라벨 — 중간점.
-      const mid = coords[Math.floor(coords.length / 2)]!;
-      if (f.properties.kor && camera.visible(mid)) {
-        const p = camera.project(mid);
-        if (p) parts.push(...layerLabel(p[0], p[1], f.properties.kor, color, theme.label.halo, halo));
+      // 라벨 — 중간점. 도형보다 높은 임계로 먼저 사라진다(이중 가시성). 별도 opacity.
+      let labelMarkup = '';
+      if (labelVisible && f.properties.kor) {
+        const mid = coords[Math.floor(coords.length / 2)]!;
+        if (camera.visible(mid)) {
+          const p = camera.project(mid);
+          if (p) {
+            const lo = labelOpacity < 1 ? ` opacity="${n2(labelOpacity)}"` : '';
+            labelMarkup =
+              `<g${lo} ${labelFont}>\n` +
+              `${layerLabel(p[0], p[1], f.properties.kor, color, theme.label.halo, halo).join('\n')}\n</g>`;
+          }
+        }
       }
 
-      // 본체·화살촉·라벨을 흐름별 그룹으로 — 가시 임계 근처 페이드(opacity)를 함께 적용.
-      const op = opacity < 1 ? ` opacity="${n2(opacity)}"` : '';
-      items.push(`<g class="gi-flow" data-id="${escapeAttr(f.id)}"${op} ${labelFont}>\n${parts.join('\n')}\n</g>`);
+      // 도형(본체·화살촉)과 라벨을 각자 opacity 그룹으로 — 라벨이 먼저 페이드/소멸한다.
+      const sop = opacity < 1 ? ` opacity="${n2(opacity)}"` : '';
+      const shapeGroup = `<g${sop}>\n${parts.join('\n')}\n</g>`;
+      items.push(
+        `<g class="gi-flow" data-id="${escapeAttr(f.id)}">\n${shapeGroup}${labelMarkup ? `\n${labelMarkup}` : ''}\n</g>`,
+      );
     }
   }
   if (items.length === 0) return '';
