@@ -17,7 +17,8 @@ import { cameraFromMeta, createCamera } from './passes/camera.js';
 import { layoutLabels } from './passes/labels.js';
 import { layoutOceans } from './passes/oceans.js';
 import { routeLinks } from './passes/links.js';
-import { emit, emitContent, emitAnnotations, type EmitInput } from './passes/emit.js';
+import { emit, emitContent, emitAnnotations, emitFlows, type EmitInput } from './passes/emit.js';
+import type { FlowWidthParams } from './flow-width.js';
 import { createLocator, type Locator } from './locate.js';
 import type { CompileOptions, CompileResult, Entity, Label, Link, Scene } from './types.js';
 
@@ -99,6 +100,10 @@ export interface RenderOptions {
    * 크기를 일정하게 한다(줌인=값<1로 작게). 기본 1.
    */
   annotationScale?: number;
+  /** 흐름(해류) 두께·가시성 계산용 — 현재 줌의 화면 픽셀/km. 미지정 시 fit 해상도. */
+  pxPerKm?: number;
+  /** 흐름 두께 모델 파라미터(라이브 튜닝). 미지정 시 기본값. */
+  flowWidthParams?: FlowWidthParams;
 }
 
 /** 모델 + 카메라 파라미터 → SVG. parse/resolve 없이 카메라 이후 패스만 재실행. */
@@ -194,6 +199,8 @@ function composeScene(
     dataSource,
     ...(opts.coarse ? { coarseWorld: true } : {}),
     ...(annoScale !== 1 ? { annotationScale: annoScale } : {}),
+    ...(opts.pxPerKm != null ? { pxPerKm: opts.pxPerKm } : {}),
+    ...(opts.flowWidthParams ? { flowWidthParams: opts.flowWidthParams } : {}),
   };
   return { input, scene, meta: camera.meta, diagnostics };
 }
@@ -227,6 +234,18 @@ export function renderAnnotations(
 ): { annotations: string; scene: Scene; meta: Scene['meta'] } {
   const { input, scene, meta } = composeScene(model, opts);
   return { annotations: emitAnnotations(input), scene, meta };
+}
+
+/**
+ * gi-flows 그룹 내부만 — 흐름(해류) 선의 두께·가시성은 줌(pxPerKm)에 종속이므로 줌 시
+ * 주석과 함께 다시 그린다. width(km) → 화면 px 환산은 emitFlows(flow-width)가 담당.
+ */
+export function renderFlows(
+  model: SceneModel,
+  opts: RenderOptions = {},
+): { flows: string; scene: Scene; meta: Scene['meta'] } {
+  const { input, scene, meta } = composeScene(model, opts);
+  return { flows: emitFlows(input), scene, meta };
 }
 
 /**

@@ -11,6 +11,7 @@
 
 import type { DataSource } from '@geoinsight/data';
 import { cardinalSpline, type FlowPt } from '../flow.js';
+import { DEFAULT_FLOW_WIDTH_PARAMS, resolveFlowWidth, type FlowWidthParams } from '../flow-width.js';
 import { graticule } from '../geometry.js';
 import type { Entity, Scene, Theme } from '../types.js';
 import type { Camera } from './camera.js';
@@ -35,6 +36,22 @@ export interface EmitInput {
    * 기본 1. 링크 path 의 두께/wedge 는 routeLinks 에서 이미 같은 배율로 적용됨.
    */
   annotationScale?: number;
+  /**
+   * 흐름(해류) 두께·가시성 계산용 — 현재 줌의 화면 픽셀/km. 미지정 시 정적 fit 해상도
+   * (projection scale / 지구반경)로 폴백한다(비대화형 compile()). 대화형 런타임은 줌을
+   * 반영한 값을 매 줌 전달해, 폭이 좁은 해류는 줌아웃 시 1px 미만이 되어 사라진다.
+   */
+  pxPerKm?: number;
+  /** 흐름 두께 모델 파라미터(라이브 튜닝). 미지정 시 DEFAULT_FLOW_WIDTH_PARAMS. */
+  flowWidthParams?: FlowWidthParams;
+}
+
+/** 지구 반경(km) — 1 라디안 호 길이. projection scale(px/rad) → px/km 환산에 쓴다. */
+const EARTH_RADIUS_KM = 6371;
+
+/** width(km) 미지정 흐름의 kind 별 기본 폭(km). */
+function defaultWidthKm(kind: string): number {
+  return isCurrentKind(kind) ? 80 : 30;
 }
 
 export function emit(input: EmitInput): string {
@@ -48,10 +65,11 @@ export function emit(input: EmitInput): string {
   );
 }
 
-/** gi-content 내부 — gi-geometry + gi-annotations 두 그룹. */
+/** gi-content 내부 — gi-geometry + gi-flows + gi-annotations 세 그룹. */
 export function emitContent(input: EmitInput): string {
   return (
     `<g class="gi-geometry">\n${emitGeometry(input)}\n</g>\n` +
+    `<g class="gi-flows">\n${emitFlows(input)}\n</g>\n` +
     `<g class="gi-annotations">\n${emitAnnotations(input)}\n</g>`
   );
 }
@@ -97,80 +115,32 @@ export function emitGeometry(input: EmitInput): string {
         }),
       );
 
-    // 3.5 큐레이션 레이어(해류 등) — 바다/세계 위, 행정구역·엔티티 아래.
-    //     난류/한류로 색을 가르고, 흐름선마다 개별 path. 격리 모드(바다 생략)는 제외.
-    const layerDefs: string[] = [];
+    // 3.5 큐레이션 레이어 면(Polygon) — 바다/세계 위, 행정구역·엔티티 아래.
+    //     선(흐름)은 gi-flows(emitFlows, 줌 종속 두께), 점은 gi-annotations 에서 그린다.
     const layerPaths: string[] = [];
     for (const name of scene.layers ?? []) {
       for (const f of dataSource.layer(name)) {
         const geomType = f.geometry.type;
-        // 점(Point)은 화면 일정 크기 마커라 emitAnnotations 에서 그린다 — 여기선 건너뜀.
-        if (geomType === 'Point' || geomType === 'MultiPoint') continue;
-        // 흐름 프리미티브 — 제어점(중심선)을 카디널 스플라인으로 보간한 뒤 투영.
-        const isFlow = f.properties.prim === 'flow' && geomType === 'LineString';
-        const d = isFlow
-          ? camera.path({
-              ...f,
-              geometry: { type: 'LineString', coordinates: cardinalSpline(f.geometry.coordinates as FlowPt[]) },
-            })
-          : camera.path(f);
+        if (geomType !== 'Polygon' && geomType !== 'MultiPolygon') continue;
+        const d = camera.path(f);
         if (!d) continue;
         const kind = f.properties.kind ?? 'warm';
         const color = layerColor(theme, kind);
-        // 범주/정량 면(Polygon) — 반투명 fill + 옅은 경계.
-        if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
-          layerPaths.push(
-            path(d, {
-              class: `gi-layer gi-layer-area gi-layer-${kind}`,
-              'data-layer': name,
-              'data-id': f.id,
-              fill: color,
-              'fill-opacity': '0.18',
-              stroke: color,
-              'stroke-opacity': '0.6',
-              'stroke-width': '1',
-              'vector-effect': 'non-scaling-stroke',
-            }),
-          );
-          continue;
-        }
-        // 흐름 방향 그라데이션 — 시작(꼬리)은 투명, 끝(화살표)은 진함. 축은 시작점→끝점 투영.
-        let stroke = color;
-        if (f.geometry.type === 'LineString' && f.geometry.coordinates.length >= 2) {
-          const c = f.geometry.coordinates;
-          const p0 = camera.project(c[0]!);
-          const pN = camera.project(c[c.length - 1]!);
-          if (p0 && pN) {
-            const gid = `gilg-${f.id.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
-            layerDefs.push(
-              `<linearGradient id="${gid}" gradientUnits="userSpaceOnUse" x1="${n2(p0[0])}" y1="${n2(p0[1])}" x2="${n2(pN[0])}" y2="${n2(pN[1])}">` +
-                `<stop offset="0" stop-color="${color}" stop-opacity="0.04"/>` +
-                `<stop offset="1" stop-color="${color}" stop-opacity="1"/></linearGradient>`,
-            );
-            stroke = `url(#${gid})`;
-          }
-        }
-        // 두께: 흐름은 properties.width 우선(미지정 시 kind 기본값), 아니면 kind 기반.
-        const baseWidth = isCurrentKind(kind) ? 8 : 1.6;
-        const strokeWidth = isFlow ? (f.properties.width ?? baseWidth) : baseWidth;
-        const lineAttrs: Record<string, string> = {
-          class: `gi-layer gi-layer-${kind}`,
-          'data-layer': name,
-          'data-id': f.id,
-          fill: 'none',
-          stroke,
-          'stroke-width': String(strokeWidth),
-          // 끝은 butt — round 캡이 화살촉 뒤로 튀어나오는 "혹" 방지(화살촉이 덮음).
-          'stroke-linecap': 'butt',
-          'stroke-linejoin': 'round',
-          'vector-effect': 'non-scaling-stroke',
-        };
-        // 점선(추정 흐름 등) — 두께에 비례한 대시.
-        if (f.properties.dash) lineAttrs['stroke-dasharray'] = `${n2(strokeWidth * 1.2)} ${n2(strokeWidth)}`;
-        layerPaths.push(path(d, lineAttrs));
+        layerPaths.push(
+          path(d, {
+            class: `gi-layer gi-layer-area gi-layer-${kind}`,
+            'data-layer': name,
+            'data-id': f.id,
+            fill: color,
+            'fill-opacity': '0.18',
+            stroke: color,
+            'stroke-opacity': '0.6',
+            'stroke-width': '1',
+            'vector-effect': 'non-scaling-stroke',
+          }),
+        );
       }
     }
-    if (layerDefs.length > 0) out.push(`<defs>\n${layerDefs.join('\n')}\n</defs>`);
     out.push(...layerPaths);
   }
 
@@ -236,59 +206,35 @@ export function emitAnnotations(input: EmitInput): string {
     out.push('</g>');
   }
 
-  // 레이어 주석 — 선: 끝 화살촉 + 중간점 라벨 / 점: 마커 + 라벨.
+  // 레이어 점 마커 + 라벨(흐름 선·화살촉·라벨은 gi-flows/emitFlows 로 이동).
   // 화면 일정 크기(annotationScale), 격리 모드 제외, globe 뒷면 컬링.
   if (!isolated && (scene.layers?.length ?? 0) > 0) {
     const halo = n2(2.5 * s);
-    const arrows: string[] = [];
     const markers: string[] = [];
     const labels: string[] = [];
     for (const name of scene.layers!) {
       for (const f of dataSource.layer(name)) {
         const gt = f.geometry.type;
+        if (gt !== 'Point' && gt !== 'MultiPoint') continue;
         const kind = f.properties.kind ?? 'warm';
         const color = layerColor(theme, kind);
-        if (gt === 'LineString') {
-          const isFlow = f.properties.prim === 'flow';
-          // 흐름은 보간 곡선의 끝 접선을 써야 화살촉 방향이 곡선과 일치.
-          const coords = isFlow ? cardinalSpline(f.geometry.coordinates as FlowPt[]) : f.geometry.coordinates;
-          if (coords.length < 2) continue;
-          // 화살촉 — 끝점, 마지막 세그먼트 방향. 굵은 해류는 화살촉도 크게. arrow:false 면 생략.
-          const baseW = isCurrentKind(kind) ? 8 : 1.6;
-          const w = isFlow ? (f.properties.width ?? baseW) : baseW;
-          const b = coords[coords.length - 1]!;
-          const a = coords[coords.length - 2]!;
-          if (f.properties.arrow !== false && camera.visible(b)) {
-            const pb = camera.project(b);
-            const pa = camera.project(a);
-            if (pb && pa) arrows.push(arrowHead(pa, pb, w * 2.4 * s, w * 1.35 * s, w * 0.5 * s, color));
-          }
-          // 라벨 — 중간점.
-          const mid = coords[Math.floor(coords.length / 2)]!;
-          if (f.properties.kor && camera.visible(mid)) {
-            const p = camera.project(mid);
-            if (p) labels.push(...layerLabel(p[0], p[1], f.properties.kor, color, theme.label.halo, halo));
-          }
-        } else if (gt === 'Point' || gt === 'MultiPoint') {
-          // 점 마커 — 흰 테두리 원. 크기는 properties.size 에 비례. 라벨은 마커 아래.
-          const pts = gt === 'Point' ? [f.geometry.coordinates] : f.geometry.coordinates;
-          const r = n2((3.5 + (Number(f.properties.size) || 1) * 1.4) * s);
-          for (const pt of pts) {
-            if (!camera.visible(pt)) continue;
-            const p = camera.project(pt);
-            if (!p) continue;
-            markers.push(
-              `<circle class="gi-layer-marker gi-layer-${kind}" data-layer="${escapeAttr(name)}" cx="${n2(p[0])}" cy="${n2(p[1])}" r="${r}" fill="${color}" stroke="${theme.label.halo}" stroke-width="${n2(1.5 * s)}"/>`,
-            );
-            if (f.properties.kor) {
-              labels.push(...layerLabel(p[0], p[1] + r + theme.label.size * 0.9 * s, f.properties.kor, color, theme.label.halo, halo));
-            }
+        // 점 마커 — 흰 테두리 원. 크기는 properties.size 에 비례. 라벨은 마커 아래.
+        const pts = gt === 'Point' ? [f.geometry.coordinates] : f.geometry.coordinates;
+        const r = n2((3.5 + (Number(f.properties.size) || 1) * 1.4) * s);
+        for (const pt of pts) {
+          if (!camera.visible(pt)) continue;
+          const p = camera.project(pt);
+          if (!p) continue;
+          markers.push(
+            `<circle class="gi-layer-marker gi-layer-${kind}" data-layer="${escapeAttr(name)}" cx="${n2(p[0])}" cy="${n2(p[1])}" r="${r}" fill="${color}" stroke="${theme.label.halo}" stroke-width="${n2(1.5 * s)}"/>`,
+          );
+          if (f.properties.kor) {
+            labels.push(...layerLabel(p[0], p[1] + r + theme.label.size * 0.9 * s, f.properties.kor, color, theme.label.halo, halo));
           }
         }
       }
     }
     if (markers.length > 0) out.push(`<g class="gi-layer-markers">\n${markers.join('\n')}\n</g>`);
-    if (arrows.length > 0) out.push(`<g class="gi-layer-arrows">\n${arrows.join('\n')}\n</g>`);
     if (labels.length > 0) {
       out.push(
         `<g class="gi-layer-labels" font-family="${escapeAttr(theme.label.font)}" font-size="${n2(theme.label.size * 0.85 * s)}" ` +
@@ -353,6 +299,106 @@ function linkPath(p: { d: string; fill: string; stroke: string; width?: number; 
 }
 
 /** 레이어 흐름선 색 — feature.kind → theme.layers 색(미정의면 warm 폴백). */
+/**
+ * gi-flows 그룹 — 흐름(해류) 선. width(km)를 현재 줌의 화면 px/km(pxPerKm)로 환산해
+ * 두께·가시성·페이드를 결정한다(flow-width). 본체·화살촉·라벨을 흐름별 opacity 그룹으로
+ * 묶어 임계 근처 페이드가 함께 적용되게 한다. 점 마커는 emitAnnotations 가 담당.
+ */
+export function emitFlows(input: EmitInput): string {
+  const { scene, camera, theme, dataSource } = input;
+  if (scene.showOnly != null || (scene.layers?.length ?? 0) === 0) return '';
+  const s = input.annotationScale && input.annotationScale > 0 ? input.annotationScale : 1;
+  // pxPerKm: 대화형은 줌 반영값을 받고, 비대화형(정적 compile)은 fit 해상도로 폴백.
+  // 가시성(줌아웃 시 사라짐)은 대화형에서만 — 정적은 줌 개념이 없어 모든 흐름을 그린다.
+  const interactive = input.pxPerKm != null && input.pxPerKm > 0;
+  const pxPerKm = interactive ? input.pxPerKm! : camera.meta.projectionParams.scale / EARTH_RADIUS_KM;
+  const params = input.flowWidthParams ?? DEFAULT_FLOW_WIDTH_PARAMS;
+  const halo = n2(2.5 * s);
+  const labelFont =
+    `font-family="${escapeAttr(theme.label.font)}" font-size="${n2(theme.label.size * 0.85 * s)}" ` +
+    `font-style="italic" text-anchor="middle"`;
+
+  const defs: string[] = [];
+  const items: string[] = [];
+  for (const name of scene.layers!) {
+    for (const f of dataSource.layer(name)) {
+      if (f.geometry.type !== 'LineString') continue;
+      const kind = f.properties.kind ?? 'warm';
+      const widthKm = typeof f.properties.width === 'number' ? f.properties.width : defaultWidthKm(kind);
+      const r = resolveFlowWidth(widthKm, pxPerKm, params);
+      if (interactive && !r.visible) continue; // 폭이 좁아 현재 줌에서 1px 미만 → 사라짐
+      const opacity = interactive ? r.opacity : 1;
+
+      const isFlow = f.properties.prim === 'flow';
+      const coords = isFlow ? cardinalSpline(f.geometry.coordinates as FlowPt[]) : f.geometry.coordinates;
+      if (coords.length < 2) continue;
+      const d = camera.path({ ...f, geometry: { type: 'LineString', coordinates: coords } });
+      if (!d) continue;
+
+      const color = layerColor(theme, kind);
+      const parts: string[] = [];
+
+      // 방향 그라데이션(꼬리 투명 → 머리 진함). axis = 시작점→끝점 투영.
+      let stroke = color;
+      const p0 = camera.project(coords[0]!);
+      const pN = camera.project(coords[coords.length - 1]!);
+      if (p0 && pN) {
+        const gid = `gilg-${f.id.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+        defs.push(
+          `<linearGradient id="${gid}" gradientUnits="userSpaceOnUse" x1="${n2(p0[0])}" y1="${n2(p0[1])}" x2="${n2(pN[0])}" y2="${n2(pN[1])}">` +
+            `<stop offset="0" stop-color="${color}" stop-opacity="0.04"/>` +
+            `<stop offset="1" stop-color="${color}" stop-opacity="1"/></linearGradient>`,
+        );
+        stroke = `url(#${gid})`;
+      }
+
+      // 본체 — non-scaling-stroke 라 stroke-width 가 곧 화면 px(strokeWidthPx).
+      const sw = n2(r.strokeWidthPx);
+      const bodyAttrs: Record<string, string> = {
+        class: `gi-layer gi-flow-line gi-layer-${kind}`,
+        'data-layer': name,
+        'data-id': f.id,
+        fill: 'none',
+        stroke,
+        'stroke-width': String(sw),
+        'stroke-linecap': 'butt',
+        'stroke-linejoin': 'round',
+        'vector-effect': 'non-scaling-stroke',
+      };
+      if (f.properties.dash) bodyAttrs['stroke-dasharray'] = `${n2(r.strokeWidthPx * 1.2)} ${sw}`;
+      parts.push(path(d, bodyAttrs));
+
+      // 화살촉 — 화면 px(strokeWidthPx) 기준. annotationScale(s) 로 viewBox 좌표 변환.
+      const b = coords[coords.length - 1]!;
+      const a = coords[coords.length - 2]!;
+      if (f.properties.arrow !== false && camera.visible(b)) {
+        const pb = camera.project(b);
+        const pa = camera.project(a);
+        if (pb && pa) {
+          const w = r.strokeWidthPx * s;
+          parts.push(arrowHead(pa, pb, w * 2.4, w * 1.35, w * 0.5, color));
+        }
+      }
+
+      // 라벨 — 중간점.
+      const mid = coords[Math.floor(coords.length / 2)]!;
+      if (f.properties.kor && camera.visible(mid)) {
+        const p = camera.project(mid);
+        if (p) parts.push(...layerLabel(p[0], p[1], f.properties.kor, color, theme.label.halo, halo));
+      }
+
+      // 본체·화살촉·라벨을 흐름별 그룹으로 — 가시 임계 근처 페이드(opacity)를 함께 적용.
+      const op = opacity < 1 ? ` opacity="${n2(opacity)}"` : '';
+      items.push(`<g class="gi-flow" data-id="${escapeAttr(f.id)}"${op} ${labelFont}>\n${parts.join('\n')}\n</g>`);
+    }
+  }
+  if (items.length === 0) return '';
+  const out: string[] = [];
+  if (defs.length > 0) out.push(`<defs>\n${defs.join('\n')}\n</defs>`);
+  out.push(...items);
+  return out.join('\n');
+}
+
 function layerColor(theme: Theme, kind: string): string {
   return theme.layers[kind] ?? theme.layers.warm ?? '#888888';
 }
