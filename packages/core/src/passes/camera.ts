@@ -101,10 +101,12 @@ export function createCamera(entities: Entity[], config: SceneConfig, opts: Came
       rotate = [-centerLon, 0];
       projection.rotate(rotate);
       const fitObject = fitGeometry(config, entities, centerLon);
-      if (config.fit.mode === 'world') {
-        // 전세계 표시 — sphere 가 viewBox 를 꽉 덮도록(cover) fit 한다. fitExtent(meet)는
-        // 2:1 sphere 를 뷰포트에 내접시켜 위·아래(또는 좌·우)에 여백을 남기는데, 줌아웃
-        // contain 한계와 맞물려 그 여백을 없앨 수 없으므로 처음부터 cover 로 채운다.
+      // 전세계(Sphere)를 fit 하는 모든 경우 — fit:world 명시뿐 아니라 show/fit 없는 'earth:'
+      // 처럼 대상이 없어 Sphere 로 폴백한 경우까지 — 는 cover 로 viewBox 를 빈틈없이 채운다.
+      // fitExtent(meet)는 2:1 sphere 를 뷰포트에 내접시켜 종횡비 차만큼 여백을 남기므로,
+      // 전세계는 처음부터 cover. 특정 영역(entities/bbox) fit 은 meet 로 여백을 둔다.
+      const isSphere = (fitObject as { type?: string }).type === 'Sphere';
+      if (isSphere) {
         fitCover(projection, width, height, fitObject);
       } else {
         projection.fitExtent(extent, fitObject as never);
