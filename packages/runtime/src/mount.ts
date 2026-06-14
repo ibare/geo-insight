@@ -22,8 +22,10 @@ import {
   createResolver,
   renderAnnotations,
   renderContent,
+  renderFlows,
   renderModel,
   type CompileResult,
+  type FlowWidthParams,
   type DataSource,
   type GeoFeature,
   type LayerFeature,
@@ -39,6 +41,8 @@ import { applyViewState, captureViewState, type ViewState } from './view-state.j
 export interface MountOptions extends InternalOptions {
   /** 줌/회전 상호작용 활성화. 기본 true. */
   interactive?: boolean;
+  /** 흐름(해류) 두께 모델 파라미터(라이브 튜닝). 미지정 시 core 기본값. */
+  flowWidthParams?: FlowWidthParams;
   /** 편집(지도 클릭으로 국가/대륙 추가·제거) 활성화. 기본 false. */
   editable?: boolean;
   /** 편집으로 DSL 이 바뀔 때 새 소스 통지 — 호스트가 영속화. */
@@ -78,6 +82,8 @@ export interface GeoInstance {
    * 편집 결과를 즉시 반영한다(편집기 전용). 줌/팬은 그대로 유지.
    */
   setLayerData(name: string, features: LayerFeature[]): void;
+  /** 흐름(해류) 두께 모델 파라미터를 라이브 교체하고 흐름만 다시 그린다(튜닝용). */
+  setFlowParams(params: FlowWidthParams): void;
 }
 
 type Rotate = [number, number];
@@ -114,6 +120,10 @@ export function mount(
   let contentGroup: SVGGElement | null = null;
   /** gi-annotations(라벨/링크/대양) 그룹 — 줌 시 이것만 재렌더해 화면상 크기 일정. */
   let annotationsGroup: SVGGElement | null = null;
+  /** gi-flows(해류 선) 그룹 — 두께·가시성이 줌(pxPerKm) 종속이라 줌 시 함께 재렌더. */
+  let flowsGroup: SVGGElement | null = null;
+  /** 흐름 두께 모델 파라미터(라이브 튜닝). 미지정 시 core 기본값. */
+  let flowWidthParams: FlowWidthParams | undefined = opts.flowWidthParams;
   let result: CompileResult | null = null;
   let model: SceneModel | null = null;
   let base: FitBase | null = null;
@@ -179,6 +189,25 @@ export function mount(
     return baseW > 0 ? controller.getView()[2] / baseW : 1;
   };
 
+  /** 현재 줌의 화면 픽셀/km — 흐름 두께·가시성 계산용. base.scale(px/rad)/지구반경. */
+  const pxPerKm = (): number | undefined => {
+    if (!svg || !base || !controller) return undefined;
+    const rect = svg.getBoundingClientRect();
+    const view = controller.getView();
+    if (rect.width <= 0 || view[2] <= 0) return undefined;
+    return (rect.width / view[2]) * (base.scale / 6371);
+  };
+
+  /** 흐름 관련 render 옵션(pxPerKm + 튜닝 파라미터)을 base 옵션에 합친다. */
+  const withFlowOpts = <T extends object>(extra: T): T & { pxPerKm?: number; flowWidthParams?: FlowWidthParams } => {
+    const px = pxPerKm();
+    return {
+      ...extra,
+      ...(px != null ? { pxPerKm: px } : {}),
+      ...(flowWidthParams ? { flowWidthParams } : {}),
+    };
+  };
+
   /** 누적 드래그 델타(px)를 회전 상태에 반영. 화면 px → 경위도는 줌·투영 scale 보정. */
   const commitPending = (): void => {
     if ((pendingDx === 0 && pendingDy === 0) || !svg || !base) return;
@@ -200,27 +229,32 @@ export function mount(
   const renderAtRotate = (coarse: boolean): void => {
     if (destroyed || !model || !base || !contentGroup) return;
     const s = annoScale();
-    const rendered = renderContent(model, {
+    const rendered = renderContent(model, withFlowOpts({
       fixed: { rotate, scale: base.scale, translate: base.translate },
       ...(coarse ? { coarse: true } : {}),
       ...(s !== 1 ? { annotationScale: s } : {}),
-    });
+    }));
     contentGroup.innerHTML = rendered.content;
     annotationsGroup = contentGroup.querySelector('.gi-annotations');
+    flowsGroup = contentGroup.querySelector('.gi-flows');
     result!.scene = rendered.scene;
     result!.meta = rendered.meta;
     editing?.refresh(result!);
   };
 
-  /** 줌 시 — 지오메트리는 viewBox 로 스케일되므로 그대로 두고 주석만 재렌더(크기 보정). */
+  /**
+   * 줌 시 — 지오메트리는 viewBox 로 스케일되므로 그대로 두고, 주석(화면 일정 크기)과
+   * 흐름(두께·가시성이 pxPerKm 종속)만 재렌더한다.
+   */
   const applyZoom = (): void => {
     zoomRaf = 0;
-    if (destroyed || !model || !base || !annotationsGroup) return;
-    const rendered = renderAnnotations(model, {
+    if (destroyed || !model || !base) return;
+    const o = withFlowOpts({
       fixed: { rotate, scale: base.scale, translate: base.translate },
       annotationScale: annoScale(),
     });
-    annotationsGroup.innerHTML = rendered.annotations;
+    if (annotationsGroup) annotationsGroup.innerHTML = renderAnnotations(model, o).annotations;
+    if (flowsGroup) flowsGroup.innerHTML = renderFlows(model, o).flows;
   };
   const onZoom = (): void => {
     if (!zoomRaf) zoomRaf = requestAnimationFrame(applyZoom);
@@ -370,6 +404,7 @@ export function mount(
     if (!svg) return;
     contentGroup = svg.querySelector('.gi-content');
     annotationsGroup = svg.querySelector('.gi-annotations');
+    flowsGroup = svg.querySelector('.gi-flows');
 
     // 컨테이너에 꽉 차게 — 픽셀 width/height 대신 viewBox 보존.
     svg.removeAttribute('width');
@@ -521,11 +556,12 @@ export function mount(
       controller?.reset();
       if (model && base && contentGroup) {
         rotate = [base.rotate[0], base.rotate[1]];
-        const rendered = renderContent(model, {
+        const rendered = renderContent(model, withFlowOpts({
           fixed: { rotate, scale: base.scale, translate: base.translate },
-        });
+        }));
         contentGroup.innerHTML = rendered.content;
         annotationsGroup = contentGroup.querySelector('.gi-annotations');
+        flowsGroup = contentGroup.querySelector('.gi-flows');
         if (result) {
           result.scene = rendered.scene;
           result.meta = rendered.meta;
@@ -542,6 +578,16 @@ export function mount(
       svg = null;
       contentGroup = null;
       annotationsGroup = null;
+      flowsGroup = null;
+    },
+    /** 흐름 두께 파라미터를 라이브 교체하고 흐름만 다시 그린다(슬라이더 튜닝용). */
+    setFlowParams(params: FlowWidthParams) {
+      flowWidthParams = params;
+      if (!model || !base || !flowsGroup) return;
+      flowsGroup.innerHTML = renderFlows(
+        model,
+        withFlowOpts({ fixed: { rotate, scale: base.scale, translate: base.translate } }),
+      ).flows;
     },
     getResult: () => result,
   };
