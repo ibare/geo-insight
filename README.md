@@ -148,7 +148,7 @@ pnpm --filter @geoinsight/layer-editor build  # electron-vite 빌드
 {
   "type": "Feature",
   "geometry": { "type": "LineString", "coordinates": [[제어점], …] },
-  "properties": { "prim": "flow", "kind": "warm", "width": 8, "arrow": true, "dash": false, "kor": "쿠로시오 해류" }
+  "properties": { "prim": "flow", "kind": "warm", "width": 100, "arrow": true, "dash": false, "kor": "쿠로시오 해류" }
 }
 ```
 
@@ -156,6 +156,24 @@ pnpm --filter @geoinsight/layer-editor build  # electron-vite 빌드
 - 보간은 `core`의 `cardinalSpline`(Catmull-Rom)을 편집기·렌더가 **공유** — 편집 중 곡선 = methii 곡선.
 - 편집: 캔버스 직접 선택 → 제어점 드래그(끝점=길이, 중간=굴곡), 세그먼트 `+`로 중간점 추가,
   Alt+클릭으로 삭제. 두께 슬라이더·화살촉/점선 토글·`kind` 색 스와치.
+
+#### `width` = 실제 폭(km), 줌 종속 LOD
+
+`width`는 화면 픽셀이 아니라 **해류의 실제 폭(km)** 이다(쿠로시오 ~100, 연안류 ~25). 화면 두께와
+가시 여부가 이 값 하나에서 파생된다 — 작성자는 줌별 표시 규칙을 따로 관리하지 않는다.
+
+```
+화면 두께(px) = width(km) × pxPerKm(현재 줌의 해상도)
+가시성        = 화면 두께 ≥ 1px 일 때만 표시
+```
+
+- **폭이 좁은 해류는 줌아웃하면 화면 1px 미만이 되어 자동으로 사라지고**(63빌딩이 100km 상공에선
+  안 보이듯), 줌인하면 다시 나타난다. 굵은 대양 경계류(쿠로시오 등)는 줌아웃에도 남는다.
+- 줌인 굵기 정책(실폭 비례 ↔ 화면 고정)·가시 임계·페이드는 `core`의 `resolveFlowWidth` /
+  `FlowWidthParams`(`gamma`·`min/maxPx`·`hideBelowPx`·`fadeToPx`)로 결정 — 정답을 코드에 박지 않고
+  **라이브로 튜닝**한다(플레이그라운드 "흐름 튜닝" 슬라이더, `setFlowParams`).
+- 렌더는 `gi-flows` 그룹(본체+화살촉+라벨)으로 **줌마다 재렌더**해 두께·가시성·opacity를 갱신한다.
+  비대화형 `compile()`(줌 개념 없음)은 LOD를 끄고 모든 흐름을 그린다.
 
 ### 데이터 모델 (A 모델)
 

@@ -70,4 +70,16 @@ export const PRESETS: Preset[] = [
   showOnly: 미국
   show: California, Texas, Florida`,
   },
+  {
+    label: '해류 LOD (동아시아 밀집)',
+    source: `earth "동아시아 해류":
+  center: 140
+  show: 한국, 중국, 일본
+  layers: 해류`,
+  },
+  {
+    label: '해류 폭 스펙트럼 (전세계)',
+    source: `earth "전세계 해류":
+  layers: 해류`,
+  },
 ];

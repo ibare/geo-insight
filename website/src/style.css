@@ -175,6 +175,42 @@ button:hover {
   background: rgba(19, 28, 44, 0.85);
 }
 
+/* ── 흐름 두께 튜닝 패널 ── */
+.preview .flow-tuner {
+  position: absolute;
+  top: 44px;
+  right: 14px;
+  z-index: 2;
+  width: 260px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(19, 28, 44, 0.92);
+  border: 1px solid rgba(120, 140, 170, 0.3);
+  border-radius: 8px;
+  font-size: 11px;
+  color: #c6d2df;
+}
+.preview .flow-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 4px 8px;
+}
+.preview .flow-row span {
+  grid-column: 1 / -1;
+  opacity: 0.85;
+}
+.preview .flow-row input[type='range'] {
+  width: 100%;
+}
+.preview .flow-row b {
+  font-variant-numeric: tabular-nums;
+  min-width: 36px;
+  text-align: right;
+}
+
 /* ── Tiptap 에디터 데모 ── */
 .ed {
   display: grid;

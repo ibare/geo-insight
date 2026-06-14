@@ -10,7 +10,8 @@
         "name": "Gulf Stream",
         "kor": "멕시코 만류",
         "kind": "warm",
-        "prim": "flow"
+        "prim": "flow",
+        "width": 100
       },
       "geometry": {
         "type": "LineString",
@@ -62,7 +63,7 @@
         "kor": "쿠로시오 해류",
         "kind": "warm",
         "prim": "flow",
-        "width": 12
+        "width": 100
       },
       "geometry": {
         "type": "LineString",
@@ -165,7 +166,8 @@
         "name": "Brazil Current",
         "kor": "브라질 해류",
         "kind": "warm",
-        "prim": "flow"
+        "prim": "flow",
+        "width": 90
       },
       "geometry": {
         "type": "LineString",
@@ -200,7 +202,8 @@
         "name": "East Australian Current",
         "kor": "동오스트레일리아 해류",
         "kind": "warm",
-        "prim": "flow"
+        "prim": "flow",
+        "width": 90
       },
       "geometry": {
         "type": "LineString",
@@ -231,7 +234,8 @@
         "name": "Agulhas Current",
         "kor": "아굴라스 해류",
         "kind": "warm",
-        "prim": "flow"
+        "prim": "flow",
+        "width": 100
       },
       "geometry": {
         "type": "LineString",
@@ -266,7 +270,8 @@
         "name": "North Atlantic Drift",
         "kor": "북대서양 해류",
         "kind": "warm",
-        "prim": "flow"
+        "prim": "flow",
+        "width": 90
       },
       "geometry": {
         "type": "LineString",
@@ -297,7 +302,8 @@
         "name": "California Current",
         "kor": "캘리포니아 해류",
         "kind": "cold",
-        "prim": "flow"
+        "prim": "flow",
+        "width": 80
       },
       "geometry": {
         "type": "LineString",
@@ -332,7 +338,8 @@
         "name": "Humboldt Current",
         "kor": "훔볼트 해류",
         "kind": "cold",
-        "prim": "flow"
+        "prim": "flow",
+        "width": 90
       },
       "geometry": {
         "type": "LineString",
@@ -368,7 +375,8 @@
         "kor": "카나리아 해류",
         "kind": "cold",
         "size": 14,
-        "prim": "flow"
+        "prim": "flow",
+        "width": 80
       },
       "geometry": {
         "type": "LineString",
@@ -403,7 +411,8 @@
         "name": "Benguela Current",
         "kor": "벵겔라 해류",
         "kind": "cold",
-        "prim": "flow"
+        "prim": "flow",
+        "width": 80
       },
       "geometry": {
         "type": "LineString",
@@ -438,7 +447,8 @@
         "name": "Oyashio Current",
         "kor": "오야시오 해류",
         "kind": "cold",
-        "prim": "flow"
+        "prim": "flow",
+        "width": 80
       },
       "geometry": {
         "type": "LineString",
@@ -469,7 +479,8 @@
         "name": "Labrador Current",
         "kor": "래브라도 해류",
         "kind": "cold",
-        "prim": "flow"
+        "prim": "flow",
+        "width": 70
       },
       "geometry": {
         "type": "LineString",
@@ -505,7 +516,7 @@
         "kor": "북한 한류",
         "kind": "cold",
         "prim": "flow",
-        "width": 4,
+        "width": 25,
         "arrow": true
       },
       "geometry": {
@@ -550,7 +561,7 @@
         "kor": "연해주 한류",
         "kind": "cold",
         "prim": "flow",
-        "width": 4,
+        "width": 25,
         "arrow": true
       },
       "geometry": {
@@ -583,7 +594,7 @@
         "kor": "중국 연안류",
         "kind": "cold",
         "prim": "flow",
-        "width": 4,
+        "width": 30,
         "arrow": true
       },
       "geometry": {
