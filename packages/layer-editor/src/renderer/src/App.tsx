@@ -4,7 +4,7 @@ import * as Tooltip from '@radix-ui/react-tooltip';
 import * as Slider from '@radix-ui/react-slider';
 import * as Switch from '@radix-ui/react-switch';
 import { mount, type GeoInstance } from '@geoinsight/runtime';
-import { cardinalSpline, DEFAULT_THEME } from '@geoinsight/core';
+import { cardinalSpline, DEFAULT_FLOW_WIDTH_PARAMS, DEFAULT_THEME } from '@geoinsight/core';
 import type { LayerFeature } from '@geoinsight/data';
 import { Cursor, MapPin, FlowArrow, Polygon, FloppyDisk, Plus, UploadSimple, Trash } from '@phosphor-icons/react';
 
@@ -84,7 +84,7 @@ export function App(): JSX.Element {
         kor: '',
         kind: toolRef.current === 'area' ? 'cold' : 'warm',
         // 흐름 draft 는 prim:'flow' 로 그려 생성 중에도 곡선 미리보기(3점부터 곡선).
-        ...(isFlow ? { prim: 'flow' as const, width: 8 } : {}),
+        ...(isFlow ? { prim: 'flow' as const, width: 30 } : {}),
       },
       geometry: d.length >= 2 ? { type: 'LineString', coordinates: d } : { type: 'Point', coordinates: d[0]! },
     };
@@ -97,6 +97,9 @@ export function App(): JSX.Element {
     inst.current?.destroy();
     inst.current = mount(mapRef.current, dsl, {
       interactive: true,
+      // 편집기는 LOD(줌아웃 시 좁은 흐름 소멸)를 끈다 — 편집 대상은 줌과 무관하게 항상
+      // 보여야 한다(임계 0 = 모든 흐름·라벨 표시). 두께는 여전히 km×줌으로 그려진다.
+      flowWidthParams: { ...DEFAULT_FLOW_WIDTH_PARAMS, hideBelowPx: 0, fadeToPx: 0, labelHidePx: 0, labelFadePx: 0 },
       loadLayer: async (name) => {
         if (name === editingRef.current && fcRef.current) return composeEditingFeatures();
         const file = indexRef.current[name]?.file;
@@ -142,7 +145,7 @@ export function App(): JSX.Element {
     const d = draftRef.current;
     if (toolRef.current === 'flow' && d.length >= 3) {
       // 흐름 프리미티브 — 제어점 중심선 + 기본 표현 파라미터.
-      addFeature({ type: 'LineString', coordinates: d }, 'warm', '흐름', { prim: 'flow', width: 8, arrow: true });
+      addFeature({ type: 'LineString', coordinates: d }, 'warm', '흐름', { prim: 'flow', width: 30, arrow: true });
     } else if (toolRef.current === 'area' && d.length >= 3) {
       addFeature({ type: 'Polygon', coordinates: [[...d, d[0]!]] }, 'cold', '면');
     }
@@ -553,10 +556,11 @@ export function App(): JSX.Element {
                     <>
                       <KindSwatch value={String(sel.properties.kind ?? '')} onChange={(v) => updateProp('kind', v)} />
                       <SliderField
-                        label="두께"
-                        min={1}
-                        max={24}
-                        value={Number(sel.properties.width ?? 8)}
+                        label="두께(km)"
+                        min={10}
+                        max={150}
+                        step={5}
+                        value={Number(sel.properties.width ?? 30)}
                         onChange={(v) => updateProp('width', v)}
                       />
                       <SwitchField
