@@ -322,7 +322,8 @@ export function emitFlows(input: EmitInput): string {
   const items: string[] = [];
   for (const name of scene.layers!) {
     for (const f of dataSource.layer(name)) {
-      if (f.geometry.type !== 'LineString') continue;
+      // 흐름은 prim:'flow' 인 LineString 만 — prim 없는 선(면 draft 등)은 흐름이 아니다.
+      if (f.geometry.type !== 'LineString' || f.properties.prim !== 'flow') continue;
       const kind = f.properties.kind ?? 'warm';
       const widthKm = typeof f.properties.width === 'number' ? f.properties.width : defaultWidthKm(kind);
       const r = resolveFlowWidth(widthKm, pxPerKm, params);

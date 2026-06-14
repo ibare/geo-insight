@@ -86,7 +86,13 @@ export function App(): JSX.Element {
         // 흐름 draft 는 prim:'flow' 로 그려 생성 중에도 곡선 미리보기(3점부터 곡선).
         ...(isFlow ? { prim: 'flow' as const, width: 30 } : {}),
       },
-      geometry: d.length >= 2 ? { type: 'LineString', coordinates: d } : { type: 'Point', coordinates: d[0]! },
+      // 면 draft 는 닫힌 Polygon 으로 미리보기(흐름선 아님). 흐름/점은 LineString/Point.
+      geometry:
+        toolRef.current === 'area' && d.length >= 3
+          ? { type: 'Polygon', coordinates: [[...d, d[0]!]] }
+          : d.length >= 2
+            ? { type: 'LineString', coordinates: d }
+            : { type: 'Point', coordinates: d[0]! },
     };
     return [...f.features, draftFeat];
   };
