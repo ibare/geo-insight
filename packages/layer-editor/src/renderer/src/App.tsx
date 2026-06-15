@@ -27,6 +27,8 @@ export function App(): JSX.Element {
   const [selIdx, setSelIdx] = useState<number | null>(null);
   const [dirty, setDirty] = useState(false);
   const [tool, setTool] = useState<Tool>('select');
+  // 보기 전용 지구본 — true 면 orthographic 으로 조망(편집 불가, flat 에서만 편집).
+  const [globe, setGlobe] = useState(false);
   const [draft, setDraft] = useState<[number, number][]>([]);
   const [creating, setCreating] = useState(false);
   const [nl, setNl] = useState({ name: '', file: '', kind: 'flow' });
@@ -44,6 +46,8 @@ export function App(): JSX.Element {
   draftRef.current = draft;
   const toolRef = useRef<Tool>(tool);
   toolRef.current = tool;
+  const globeRef = useRef(globe);
+  globeRef.current = globe;
   const selIdxRef = useRef<number | null>(selIdx);
   selIdxRef.current = selIdx;
   // 드래그 상태 — setState 없이 ref+rAF 로만 갱신(지도 remount 회피).
@@ -67,7 +71,12 @@ export function App(): JSX.Element {
     refreshStatus();
   }, []);
 
-  const dsl = active.length > 0 ? `earth:\n  layers: ${active.join(', ')}` : 'earth:';
+  const dsl =
+    'earth:' +
+    (globe ? '\n  projection: orthographic' : '') +
+    (active.length > 0 ? `\n  layers: ${active.join(', ')}` : '');
+  const dslRef = useRef(dsl);
+  dslRef.current = dsl;
 
   // 편집 중 레이어의 표시 피처 = 메모리(fcRef) + 진행 중 draft. loadLayer 와 setLayerData 가 공유.
   const composeEditingFeatures = (): LayerFeature[] => {
@@ -97,11 +106,11 @@ export function App(): JSX.Element {
     return [...f.features, draftFeat];
   };
 
-  // 지도 — 편집 중 레이어는 메모리(fcRef)+진행 중 draft 로 실시간 미리보기.
+  // 지도 — 최초 1회만 마운트. 이후 dsl(레이어·투영) 변경은 update 로 재컴파일하되 뷰
+  // (중심·줌)를 보존한다(flat↔globe 전환 시 보던 위치 유지). fc/draft 는 아래 effect.
   useEffect(() => {
     if (!mapRef.current) return;
-    inst.current?.destroy();
-    inst.current = mount(mapRef.current, dsl, {
+    inst.current = mount(mapRef.current, dslRef.current, {
       interactive: true,
       // 편집기는 LOD(줌아웃 시 좁은 흐름 소멸)를 끈다 — 편집 대상은 줌과 무관하게 항상
       // 보여야 한다(임계 0 = 모든 흐름·라벨 표시). 두께는 여전히 km×줌으로 그려진다.
@@ -118,7 +127,11 @@ export function App(): JSX.Element {
       inst.current?.destroy();
       inst.current = null;
     };
-    // dsl(레이어 목록)이 바뀔 때만 remount. fc/draft 변경은 아래 effect 가 뷰 보존하며 갱신.
+  }, []);
+
+  // dsl(레이어 목록·투영) 변경 — remount 없이 update(뷰 보존, ViewState 로 중심·줌 유지).
+  useEffect(() => {
+    inst.current?.update(dsl);
   }, [dsl]);
 
   // 데이터(fc)·draft 변경 — remount 없이 레이어 데이터만 교체(뷰/줌 보존, 캐시 우회).
@@ -193,7 +206,7 @@ export function App(): JSX.Element {
           // 드래그 중이면 ref 좌표(미커밋)로 그림 — setState 없이 실시간.
           const coords = dragCoordsRef.current ?? (ft.geometry.coordinates as [number, number][]);
           const geom = { ...ft.geometry, coordinates: coords } as Geom;
-          svg.innerHTML = highlightSvg(geom, gi, ft.properties.prim === 'flow');
+          svg.innerHTML = highlightSvg(geom, gi, ft.properties.prim === 'flow', !globeRef.current);
         } else {
           svg.innerHTML = '';
         }
@@ -429,17 +442,32 @@ export function App(): JSX.Element {
           <ToolItem value="select" label="선택">
             <Cursor />
           </ToolItem>
-          <ToolItem value="point" label="점" disabled={!editing}>
+          <ToolItem value="point" label="점" disabled={!editing || globe}>
             <MapPin />
           </ToolItem>
-          <ToolItem value="flow" label="흐름" disabled={!editing}>
+          <ToolItem value="flow" label="흐름" disabled={!editing || globe}>
             <FlowArrow />
           </ToolItem>
-          <ToolItem value="area" label="면" disabled={!editing}>
+          <ToolItem value="area" label="면" disabled={!editing || globe}>
             <Polygon />
           </ToolItem>
         </ToggleGroup.Root>
         <div className="bar-right">
+          <button
+            className={`ghost-btn${globe ? ' active' : ''}`}
+            title={globe ? '평면(편집)으로' : '지구본(보기)으로'}
+            onClick={() => {
+              const next = !globe;
+              setGlobe(next);
+              // 지구본은 보기 전용 — 켜면 진행 중 편집을 접고 선택 모드로.
+              if (next) {
+                setDraft([]);
+                setTool('select');
+              }
+            }}
+          >
+            {globe ? '평면' : '지구본'}
+          </button>
           <button className="ghost-btn" onClick={() => void revert()}>
             시드 교체
           </button>
@@ -828,7 +856,7 @@ const midHandleSvg = (seg: number, x: number, y: number): string =>
  * 흐름(isFlow)이면 core 와 동일한 카디널 스플라인으로 곡선 미리보기.
  * LineString 핸들은 제어점 인덱스(data-vtx)를 보존해 드래그 대상이 된다.
  */
-function highlightSvg(geom: Geom, gi: GeoInstance, isFlow = false): string {
+function highlightSvg(geom: Geom, gi: GeoInstance, isFlow = false, showHandles = true): string {
   const isLine = geom.type === 'LineString';
   let s = '';
   // 외곽선
@@ -853,7 +881,8 @@ function highlightSvg(geom: Geom, gi: GeoInstance, isFlow = false): string {
     }
   }
   // 제어점 핸들 — LineString 은 인덱스 보존(드래그 대상), 그 외는 인덱스 없이.
-  if (isLine) {
+  // showHandles=false(지구본 보기)면 외곽선만 그리고 핸들은 생략(편집 불가).
+  if (showHandles && isLine) {
     const ctrl = geom.coordinates as Pt[];
     // 흐름이면 세그먼트 중점에 '+' 추가 핸들(제어점 핸들 아래에 깔아 우선순위 양보).
     if (isFlow) {
@@ -867,7 +896,7 @@ function highlightSvg(geom: Geom, gi: GeoInstance, isFlow = false): string {
       const p = gi.project(ctrl[k]![0], ctrl[k]![1]);
       if (p) s += handleSvg(k, p[0], p[1]);
     }
-  } else {
+  } else if (showHandles) {
     const { points } = geomToPx(geom, gi);
     for (const [x, y] of points) s += handleSvg(null, x, y);
   }

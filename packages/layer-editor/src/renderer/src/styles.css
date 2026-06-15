@@ -117,6 +117,10 @@ body {
   opacity: 0.4;
   cursor: default;
 }
+.ghost-btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
 .publish-btn {
   display: flex;
   align-items: center;
