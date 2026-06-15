@@ -28,6 +28,8 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
+  /* 윈도우보다 커지지 않게 — 내부(패널/캔버스)가 각자 줄거나 스크롤한다. */
+  overflow: hidden;
 }
 
 /* 상단 툴바 */
@@ -197,6 +199,9 @@ body {
 .left,
 .right {
   background: var(--panel);
+  /* grid item — min-height:0 라야 윈도우가 줄 때 패널이 줄고 내부에서 스크롤된다
+     (min-height:0 없으면 콘텐츠 높이만큼 .body 를 밀어 윈도우 전체가 스크롤됨). */
+  min-height: 0;
   overflow: auto;
   padding: 14px;
 }
@@ -329,7 +334,11 @@ h2 {
 /* 캔버스 */
 .canvas {
   position: relative;
+  /* grid item 기본 min-height/width 는 auto(콘텐츠 최소) — 0 으로 풀어 윈도우가 줄면
+     캔버스도 함께 줄게 한다. overflow:hidden 으로 넘침 방지(맵은 ResizeObserver 재렌더). */
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   background: #0b1018;
 }
 .canvas.drawing {
