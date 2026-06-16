@@ -1,19 +1,50 @@
 {
   "name": "@geo-insight/core",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
-  "main": "./src/index.ts",
-  "module": "./src/index.ts",
-  "types": "./src/index.ts",
-  "exports": {
-    ".": "./src/index.ts"
+  "description": "GeoInsight compiler — semantic geographic DSL to deterministic SVG (IR pipeline, framework-free).",
+  "license": "MIT",
+  "author": "ibare",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ibare/geo-insight.git",
+    "directory": "packages/core"
   },
+  "homepage": "https://github.com/ibare/geo-insight#readme",
+  "bugs": "https://github.com/ibare/geo-insight/issues",
+  "keywords": [
+    "geoinsight",
+    "geography",
+    "map",
+    "svg",
+    "dsl",
+    "compiler",
+    "d3-geo"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "prepublishOnly": "pnpm build"
   },
   "dependencies": {
     "@geo-insight/data": "workspace:*",

@@ -5,17 +5,27 @@
 GeoInsight는 **npm으로 배포**된다. 패키지 코드를 고쳤으면 **버전을 올려 재발행**해야
 호스트(methii 등)에 반영된다. "고치고 끝"이 아니라 "고치고 → 버전↑ → 발행 → 태그 push"가 한 단위다.
 
-### 발행 대상
+### 발행 대상 (4패키지, lockstep 동일 버전)
 
-- **발행되는 패키지는 `@geo-insight/tiptap` (`packages/host-tiptap-bundle`) 하나뿐.**
-  나머지 `@geo-insight/*`(core·data·runtime·host-tiptap 등)는 이 번들에 Rollup으로 인라인되므로
-  **개별 발행하지 않는다.** core/data 등을 고쳐도 발행은 번들 한 번으로 끝난다.
-- npm org = `geo-insight`(하이픈 O), scope = `@geo-insight` 일치. 모노레포 전체 scope 통일됨.
-- `publishConfig.access: public` — 공개 패키지.
+- npm org = `geo-insight`(하이픈 O), scope = `@geo-insight` 일치. **발행 4패키지는 버전을 항상 동기화**한다:
+
+  | 패키지 | 디렉토리 | 발행 형태 | 의존 |
+  |---|---|---|---|
+  | `@geo-insight/data` | `packages/data` | tsc 빌드(`dist/src` + `dist/assets` 동봉) | 외부만 |
+  | `@geo-insight/core` | `packages/core` | tsc 빌드(`dist`) | `data` |
+  | `@geo-insight/runtime` | `packages/runtime` | tsc 빌드(`dist` + `styles.css`) | `core` |
+  | `@geo-insight/tiptap` | `packages/host-tiptap-bundle` | Rollup self-contained 번들 | (전부 인라인) |
+
+- `@geo-insight/host-tiptap`(소스)·`layer-editor`·`website`·`examples`는 **private — 발행 안 함**.
+  host-tiptap 등은 tiptap 번들에 Rollup으로 인라인되므로 개별 발행 불필요.
+- 의존은 `workspace:*` 그대로 둔다 — **`pnpm publish`가 발행 시 현재 버전으로 변환**한다.
+  그래서 lockstep(동일 버전)이면 의존 버전 갱신을 따로 할 필요가 없다.
+- `npm publish`(X) → **반드시 `pnpm publish`**. npm은 `workspace:*`를 변환하지 못해 깨진 패키지가 올라간다.
+- `publishConfig.access: public` — 전부 공개.
 
 ### 릴리스 절차
 
-워킹 트리가 **clean**해야 한다(`npm version`이 요구). 먼저 변경을 커밋한 뒤:
+워킹 트리가 **clean**해야 한다. 먼저 변경을 커밋한 뒤:
 
 ```bash
 pnpm release:patch    # 버그fix·소소한 변경 (0.1.0 → 0.1.1)
@@ -23,17 +33,16 @@ pnpm release:minor    # 기능 추가, 하위호환 (0.1.0 → 0.2.0)
 pnpm release:major    # 파괴적 변경 (0.1.0 → 1.0.0)
 ```
 
-각 스크립트가 자동으로 수행하는 단계(루트 `package.json`에 정의):
+각 스크립트는 `release:check`(typecheck+test 게이트) 후 `scripts/release.mjs <bump>`를 돌린다:
 
-1. `release:check` — `pnpm typecheck && pnpm test` 게이트 (실패 시 중단)
-2. `npm version <bump>` — 번들 `package.json` 버전↑ + 커밋 + git 태그 `vX.Y.Z` 생성
-3. `npm publish` — `prepublishOnly`가 Rollup 빌드 → 발행 (`.map` 제외, LICENSE/README 동봉)
-4. `git push --follow-tags` — main 커밋 + 태그 push
+1. 4패키지 버전 **동시** bump (`npm version --no-git-tag-version`)
+2. 단일 커밋 + git 태그 `vX.Y.Z`
+3. **의존 순서**(data → core → runtime → tiptap)로 `pnpm publish` — 각 `prepublishOnly`가 빌드
+4. `git push --follow-tags`
 
 ### 발행 후 확인
 
-`npm publish`가 `+ @geo-insight/tiptap@X.Y.Z`를 출력해도 **read 복제본 전파에 수 분 걸린다**
-(신규 scope 첫 패키지는 특히). 곧바로 `npm view`가 404여도 발행은 성공한 것일 수 있다.
+`pnpm publish`가 성공을 출력해도 **read 복제본 전파에 수 분 걸린다**(`npm view` 404여도 성공일 수 있음).
 
 ```bash
 npm view @geo-insight/tiptap version   # 새 버전과 일치하면 전파 완료
@@ -41,10 +50,10 @@ npm view @geo-insight/tiptap version   # 새 버전과 일치하면 전파 완�
 
 ### 주의
 
-- **버전 올리는 걸 잊지 말 것.** 같은 버전으로는 재발행 불가(npm이 거부). 코드만 고치고 발행 안 하면
-  호스트엔 아무 반영도 안 된다.
-- methii 호스트는 `@geo-insight/tiptap`을 import한다(하이픈 O). 발행명이 바뀌면 호스트도 갱신 필요.
-- 첫 발행이 private로 잡혔다면: `npm access public @geo-insight/tiptap`.
+- **버전 올리는 걸 잊지 말 것.** 같은 버전 재발행은 npm이 거부. 코드만 고치고 발행 안 하면 호스트 반영 0.
+- data 등 하위 패키지만 고쳐도 **4개가 같이 버전이 올라간다**(lockstep). 이게 의존 일관성을 보장한다.
+- methii 호스트는 `@geo-insight/tiptap`·필요 시 `@geo-insight/runtime` 등을 import한다(하이픈 O).
+- 첫 발행이 private로 잡혔다면: `npm access public @geo-insight/<pkg>`.
 
 ---
 
