@@ -1,7 +1,7 @@
 /**
  * 레이어 디스크 로더 — Node 전용(테스트·빌드·서버 렌더).
  *
- * 브라우저 번들에 node:fs 가 새지 않도록 '@geoinsight/data/node' 서브경로로 분리.
+ * 브라우저 번들에 node:fs 가 새지 않도록 '@geo-insight/data/node' 서브경로로 분리.
  * 결국 DataSource.loadLayer 로 주입 — ADM1 의 loadAdm1FromDisk 와 같은 패턴.
  */
 

@@ -1,5 +1,5 @@
 {
-  "name": "@geoinsight/examples",
+  "name": "@geo-insight/examples",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,6 +7,6 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@geoinsight/core": "workspace:*"
+    "@geo-insight/core": "workspace:*"
   }
 }

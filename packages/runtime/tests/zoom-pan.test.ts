@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
-import { cameraFromMeta, compile } from '@geoinsight/core';
+import { cameraFromMeta, compile } from '@geo-insight/core';
 import { attachZoomPan, type ViewBox } from '../src/zoom-pan.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';

@@ -3,9 +3,9 @@ import * as ToggleGroup from '@radix-ui/react-toggle-group';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import * as Slider from '@radix-ui/react-slider';
 import * as Switch from '@radix-ui/react-switch';
-import { mount, type GeoInstance } from '@geoinsight/runtime';
-import { cardinalSpline, DEFAULT_FLOW_WIDTH_PARAMS, DEFAULT_THEME } from '@geoinsight/core';
-import type { LayerFeature } from '@geoinsight/data';
+import { mount, type GeoInstance } from '@geo-insight/runtime';
+import { cardinalSpline, DEFAULT_FLOW_WIDTH_PARAMS, DEFAULT_THEME } from '@geo-insight/core';
+import type { LayerFeature } from '@geo-insight/data';
 import { Cursor, MapPin, FlowArrow, Polygon, FloppyDisk, Plus, UploadSimple, Trash } from '@phosphor-icons/react';
 
 type LayerIndex = Record<string, { file: string; kind: string }>;

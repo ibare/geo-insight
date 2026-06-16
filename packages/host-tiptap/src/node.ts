@@ -1,6 +1,6 @@
 import { Node, mergeAttributes } from '@tiptap/core';
-import type { GeoFeature, LayerFeature } from '@geoinsight/core';
-import { loadAdm1Browser, loadLayerBrowser } from '@geoinsight/data/browser';
+import type { GeoFeature, LayerFeature } from '@geo-insight/core';
+import { loadAdm1Browser, loadLayerBrowser } from '@geo-insight/data/browser';
 import { createGeoInsightNodeView } from './node-view.js';
 
 export const GEOINSIGHT_NODE_NAME = 'geoinsightBlock';
@@ -12,7 +12,7 @@ export interface GeoInsightExtensionOptions {
   theme?: 'light' | 'dark';
   /**
    * ADM1(주/도) 지연 로더 — show/showOnly 의 국가(ccn3) 행정구역을 비동기로 가져온다.
-   * 기본값은 loadAdm1Browser — 번들(@geoinsight/tiptap)에 lazy 청크로 포함된 국가별
+   * 기본값은 loadAdm1Browser — 번들(@geo-insight/tiptap)에 lazy 청크로 포함된 국가별
    * ADM1 JSON 을 동적 import 한다. 즉 호스트(methii 등)는 별도 배선 없이 ADM1 동작.
    * 호스트가 자체 자산 서빙(fetch 등)을 쓰려면 직접 주입해 오버라이드.
    */

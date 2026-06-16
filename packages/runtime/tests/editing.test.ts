@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from 'vitest';
-import { cameraFromMeta } from '@geoinsight/core';
+import { cameraFromMeta } from '@geo-insight/core';
 import { mount } from '../src/mount.js';
 
 /** happy-dom 은 레이아웃이 없어 getBoundingClientRect 가 0 을 반환 → viewBox 와 동일한

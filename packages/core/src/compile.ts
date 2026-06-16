@@ -6,7 +6,7 @@
  * 만큼 부분 렌더(graceful degradation).
  */
 
-import { createDefaultDataSource, createResolver, type DataSource, type Resolver } from '@geoinsight/data';
+import { createDefaultDataSource, createResolver, type DataSource, type Resolver } from '@geo-insight/data';
 import type { Ast } from './ast.js';
 import { type Diagnostic, warning } from './diagnostics.js';
 import { parse } from './parser.js';

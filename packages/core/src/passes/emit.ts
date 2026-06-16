@@ -9,7 +9,7 @@
  * 좌표는 이미 precision 으로 반올림됨. 속성/순서가 안정적이라 스냅샷·diff 가능.
  */
 
-import type { DataSource } from '@geoinsight/data';
+import type { DataSource } from '@geo-insight/data';
 import { cardinalSpline, type FlowPt } from '../flow.js';
 import { DEFAULT_FLOW_WIDTH_PARAMS, resolveFlowWidth, type FlowWidthParams } from '../flow-width.js';
 import { graticule } from '../geometry.js';

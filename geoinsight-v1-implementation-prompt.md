@@ -32,12 +32,12 @@ geoinsight/
 │   ├─ tsup.base.ts
 │   └─ eslint.config.js
 ├─ packages/
-│   ├─ core/        @geoinsight/core      # DSL → IR → SVG. 프레임워크/DOM 의존 0
-│   ├─ data/        @geoinsight/data      # 지리 데이터 + 이름 해석(resolver)
-│   ├─ runtime/     @geoinsight/runtime   # 바닐라 DOM 마운트 + 줌/팬 (프레임워크 0)
-│   ├─ markdown/    @geoinsight/markdown  # 마크다운 펜스(```geoinsight) 어댑터
-│   ├─ react/       @geoinsight/react     # React 어댑터 (react = peerDependency)
-│   └─ cli/         @geoinsight/cli       # 마크다운에서 펜스 추출 → 정적 SVG (빌드타임)
+│   ├─ core/        @geo-insight/core      # DSL → IR → SVG. 프레임워크/DOM 의존 0
+│   ├─ data/        @geo-insight/data      # 지리 데이터 + 이름 해석(resolver)
+│   ├─ runtime/     @geo-insight/runtime   # 바닐라 DOM 마운트 + 줌/팬 (프레임워크 0)
+│   ├─ markdown/    @geo-insight/markdown  # 마크다운 펜스(```geoinsight) 어댑터
+│   ├─ react/       @geo-insight/react     # React 어댑터 (react = peerDependency)
+│   └─ cli/         @geo-insight/cli       # 마크다운에서 펜스 추출 → 정적 SVG (빌드타임)
 └─ examples/
     ├─ trade-winds.md             # ```geoinsight 블록 포함 마크다운
     ├─ africa-sudan-india.md
@@ -50,10 +50,10 @@ geoinsight/
 
 | 패키지 | 허용 의존 | 금지 |
 |---|---|---|
-| `core` | `@geoinsight/data`, `d3-geo`(+필요 시 `d3-geo-projection`), `topojson-client` | React/Vue/DOM/window |
+| `core` | `@geo-insight/data`, `d3-geo`(+필요 시 `d3-geo-projection`), `topojson-client` | React/Vue/DOM/window |
 | `data` | `world-atlas`, `world-countries` (또는 번들 JSON) | core |
-| `runtime` | `@geoinsight/core`, 브라우저 DOM | React/Vue |
-| `markdown` | `@geoinsight/core`; (인터랙티브 하이드레이션 시 `runtime`) | React/Vue |
+| `runtime` | `@geo-insight/core`, 브라우저 DOM | React/Vue |
+| `markdown` | `@geo-insight/core`; (인터랙티브 하이드레이션 시 `runtime`) | React/Vue |
 | `react` | `runtime`, `core`; `react`는 peer | — |
 | `cli` | `core`, `data`, `markdown` | DOM |
 
@@ -199,7 +199,7 @@ interface Diagnostic {
 
 1. **Lex** — 펜스 본문 → 토큰. 들여쓰기/콜론/`->`/`{}` 인식.
 2. **Parse** — 토큰 → 구문 AST. 순수 구문만, 의미 없음. 문법 오류는 span과 함께 diagnostic.
-3. **Resolve** — 엔티티 이름 → feature 집합 (`@geoinsight/data` resolver 호출). 미해석/모호 이름은 여기서 error + `suggestions`.
+3. **Resolve** — 엔티티 이름 → feature 집합 (`@geo-insight/data` resolver 호출). 미해석/모호 이름은 여기서 error + `suggestions`.
 4. **Roles/Layers** — 추론 규칙 + 명시 역할 적용. z-order 계산(group 아래, focus 위). group의 부분집합인 focus(예: 아프리카 안의 수단)는 group *다음에* 그려 위로 올린다.
 5. **Geometry** — 엔티티별 구면 centroid·bbox 산출(`geoCentroid`/`geoBounds`). group은 내부 국경 유지(`borders: keep`) 또는 dissolve 선택.
 6. **Project & Fit** — projection 생성 → `rotate` 적용 → `fit` 모드에 따라 `fitExtent`. `dominant`는 각 엔티티의 최대 면적 클러스터들의 합집합 bbox로 카메라를 맞춘다(전체 지오메트리는 그대로 그리되 프레이밍만). 결과로 lon/lat→화면 좌표 확정, `meta.viewBox`·`projectionParams` 기록.
@@ -211,7 +211,7 @@ interface Diagnostic {
 
 ---
 
-## 5. 데이터 / 이름 해석 (`@geoinsight/data`)
+## 5. 데이터 / 이름 해석 (`@geo-insight/data`)
 
 - **지오메트리**: `world-atlas` countries-110m 기본, 50m 옵션. `topojson-client`로 GeoJSON 변환.
 - **메타데이터**: `world-countries` — `ccn3`로 지오메트리와 조인, `translations.kor.common`(한글명), `region`/`subregion`.
@@ -260,7 +260,7 @@ interface Theme {
 ## 7. 패키지별 공개 API
 
 ```ts
-// @geoinsight/core
+// @geo-insight/core
 export function compile(source: string, opts?: CompileOptions): CompileResult;
 export interface CompileResult {
   svg: string;
@@ -270,14 +270,14 @@ export interface CompileResult {
 }
 export function parse(source: string): { ast: Ast; diagnostics: Diagnostic[] }; // 부분 노출
 
-// @geoinsight/markdown  (코어만; 호스트 통합의 주 진입점)
+// @geo-insight/markdown  (코어만; 호스트 통합의 주 진입점)
 // remark/rehype 플러그인 + markdown-it 플러그인 둘 다 제공.
 // lang === "geoinsight" 코드블록을 찾아 compile() 결과 SVG로 치환.
 // 인터랙티브가 필요하면 runtime 하이드레이션 마커를 남긴다.
 export function remarkGeoInsight(opts?: AdapterOptions): Plugin;
 export function markdownItGeoInsight(md: MarkdownIt, opts?: AdapterOptions): void;
 
-// @geoinsight/runtime  (바닐라, DOM만)
+// @geo-insight/runtime  (바닐라, DOM만)
 export function mount(el: HTMLElement, src: string | CompileResult, opts?: MountOptions): GeoInstance;
 export interface GeoInstance {
   update(src: string | CompileResult): void;
@@ -288,7 +288,7 @@ export interface GeoInstance {
 // 줌/팬: 휠/드래그/핀치. viewBox 변환 기반(좌표는 core가 준 meta 사용).
 // 펜스로 렌더된 정적 SVG를 진보적 향상으로 하이드레이트.
 
-// @geoinsight/react
+// @geo-insight/react
 export function GeoInsight(props: {
   source: string;
   options?: CompileOptions & MountOptions;
@@ -296,7 +296,7 @@ export function GeoInsight(props: {
   onError?(d: Diagnostic[]): void;
 }): JSX.Element;   // 내부에서 runtime 사용, react는 peer
 
-// @geoinsight/cli  (빌드타임)
+// @geo-insight/cli  (빌드타임)
 // $ geoinsight build "docs/**/*.md"   # 마크다운의 geoinsight 펜스 → SVG로 인라인/추출
 // $ geoinsight render -                # stdin DSL → stdout SVG  [--width 960 --center 태평양 --theme light]
 ```
@@ -328,14 +328,14 @@ export function GeoInsight(props: {
 각 단계는 테스트 통과 + 체크포인트로 마감한다.
 
 - **P0** 모노레포 스캐폴드 + 공유 configs + 빈 패키지 6개 + CI(OIDC 배포 스텁)
-- **P1** `@geoinsight/data`: topojson 변환 + world-countries 조인 + Resolver(+테스트)
+- **P1** `@geo-insight/data`: topojson 변환 + world-countries 조인 + Resolver(+테스트)
 - **P2** core: Lex → Parse → AST + diagnostics(+테스트)
 - **P3** core: Resolve → Roles/Layers → Geometry 패스
 - **P4** core: Project&Fit(rotate→fit, dominant) → Label layout
 - **P5** core: Link routing(anchor·curve·geodesic·taper)
 - **P6** core: Emit + Theme + 결정성 보장. → 골든 SVG 수용 테스트 통과
-- **P7** `@geoinsight/runtime`: mount + 줌/팬 + zoomTo
-- **P8** `@geoinsight/markdown`(remark + markdown-it) + `@geoinsight/react` + `@geoinsight/cli`
+- **P7** `@geo-insight/runtime`: mount + 줌/팬 + zoomTo
+- **P8** `@geo-insight/markdown`(remark + markdown-it) + `@geo-insight/react` + `@geo-insight/cli`
 - **P9** examples(trade-winds 등 마크다운) + 전체 스냅샷/골든 정비 + README
 
 ---

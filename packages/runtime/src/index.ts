@@ -1,5 +1,5 @@
 /**
- * @geoinsight/runtime — 바닐라 DOM 마운트 + 줌/팬. 프레임워크 0.
+ * @geo-insight/runtime — 바닐라 DOM 마운트 + 줌/팬. 프레임워크 0.
  */
 
 export { mount, type GeoInstance, type MountOptions } from './mount.js';

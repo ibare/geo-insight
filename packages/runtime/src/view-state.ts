@@ -10,7 +10,7 @@
  * "세로 위치(중심 위도)"에 대응한다 — 이 차이를 무시한 게 비틀림의 원인이었다.
  */
 
-import { cameraFromMeta, renderModel, type CompileResult, type SceneMeta, type SceneModel } from '@geoinsight/core';
+import { cameraFromMeta, renderModel, type CompileResult, type SceneMeta, type SceneModel } from '@geo-insight/core';
 import type { ViewBox } from './zoom-pan.js';
 
 export interface ViewState {

@@ -27,13 +27,13 @@ importers:
 
   examples:
     devDependencies:
-      '@geoinsight/core':
+      '@geo-insight/core':
         specifier: workspace:*
         version: link:../packages/core
 
   packages/core:
     dependencies:
-      '@geoinsight/data':
+      '@geo-insight/data':
         specifier: workspace:*
         version: link:../data
       d3-geo:
@@ -81,13 +81,13 @@ importers:
 
   packages/host-tiptap:
     dependencies:
-      '@geoinsight/core':
+      '@geo-insight/core':
         specifier: workspace:*
         version: link:../core
-      '@geoinsight/data':
+      '@geo-insight/data':
         specifier: workspace:*
         version: link:../data
-      '@geoinsight/runtime':
+      '@geo-insight/runtime':
         specifier: workspace:*
         version: link:../runtime
     devDependencies:
@@ -103,7 +103,7 @@ importers:
 
   packages/host-tiptap-bundle:
     devDependencies:
-      '@geoinsight/host-tiptap':
+      '@geo-insight/host-tiptap':
         specifier: workspace:*
         version: link:../host-tiptap
       '@rollup/plugin-commonjs':
@@ -151,13 +151,13 @@ importers:
 
   packages/layer-editor:
     dependencies:
-      '@geoinsight/core':
+      '@geo-insight/core':
         specifier: workspace:*
         version: link:../core
-      '@geoinsight/data':
+      '@geo-insight/data':
         specifier: workspace:*
         version: link:../data
-      '@geoinsight/runtime':
+      '@geo-insight/runtime':
         specifier: workspace:*
         version: link:../runtime
       '@phosphor-icons/react':
@@ -206,7 +206,7 @@ importers:
 
   packages/runtime:
     dependencies:
-      '@geoinsight/core':
+      '@geo-insight/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -219,16 +219,16 @@ importers:
 
   website:
     dependencies:
-      '@geoinsight/core':
+      '@geo-insight/core':
         specifier: workspace:*
         version: link:../packages/core
-      '@geoinsight/data':
+      '@geo-insight/data':
         specifier: workspace:*
         version: link:../packages/data
-      '@geoinsight/host-tiptap':
+      '@geo-insight/host-tiptap':
         specifier: workspace:*
         version: link:../packages/host-tiptap
-      '@geoinsight/runtime':
+      '@geo-insight/runtime':
         specifier: workspace:*
         version: link:../packages/runtime
       '@tiptap/core':

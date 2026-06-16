@@ -4,15 +4,15 @@ import {
   GEOINSIGHT_NODE_NAME,
   GeoInsightExtension,
   geoInsightNodeToMarkdown,
-} from '@geoinsight/host-tiptap';
-import { loadAdm1Browser, loadLayerBrowser } from '@geoinsight/data/browser';
+} from '@geo-insight/host-tiptap';
+import { loadAdm1Browser, loadLayerBrowser } from '@geo-insight/data/browser';
 import { PRESETS } from './presets.js';
 
 /**
  * Tiptap 에디터 연동 데모.
  *
  * methii 와 동일한 경로: GeoInsightExtension 을 vanilla Tiptap 에디터에 등록하면
- * ```geoinsight 펜스가 geoinsightBlock 노드로 파싱되고, NodeView 가 @geoinsight/runtime
+ * ```geoinsight 펜스가 geoinsightBlock 노드로 파싱되고, NodeView 가 @geo-insight/runtime
  * 의 인터랙티브 맵을 문서 안에 마운트한다. 우측에서 DSL 을 편집하면 블록이 실시간
  * 갱신되고, "마크다운 내보내기" 로 펜스 round-trip 을 확인할 수 있다.
  */
@@ -60,7 +60,7 @@ export function mountEditorDemo(host: HTMLElement): () => void {
         content: [
           {
             type: 'text',
-            text: '아래 지도는 @geoinsight/host-tiptap 익스텐션이 렌더한 geoinsightBlock 노드입니다. methii 같은 호스트가 @geoinsight/tiptap 번들을 통해 동일하게 연동합니다.',
+            text: '아래 지도는 @geo-insight/host-tiptap 익스텐션이 렌더한 geoinsightBlock 노드입니다. methii 같은 호스트가 @geo-insight/tiptap 번들을 통해 동일하게 연동합니다.',
           },
         ],
       },

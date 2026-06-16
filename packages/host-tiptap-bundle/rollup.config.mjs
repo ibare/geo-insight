@@ -1,6 +1,6 @@
 // @ts-check
 /**
- * @geoinsight/tiptap — rollup 설정.
+ * @geo-insight/tiptap — rollup 설정.
  *
  * 정책 (참고 프로젝트 @trama-chain/tiptap 미러):
  *  - 단일 ESM entry (tiptap.js) + 자동 chunk 추론.
@@ -33,10 +33,10 @@ const external = [/^@tiptap\/core/, /^@tiptap\/pm(\/.*)?$/];
 
 /**
  * chunk 의미 분리. id 는 절대 경로로 들어옴.
- *  - @geoinsight/core: DSL→IR→SVG 컴파일러.
- *  - @geoinsight/data: 지오메트리 + resolver (world-atlas/world-countries 번들 JSON 포함).
- *  - @geoinsight/runtime: vanilla 줌/팬 마운트.
- *  - @geoinsight/host-tiptap: tiptap glue.
+ *  - @geo-insight/core: DSL→IR→SVG 컴파일러.
+ *  - @geo-insight/data: 지오메트리 + resolver (world-atlas/world-countries 번들 JSON 포함).
+ *  - @geo-insight/runtime: vanilla 줌/팬 마운트.
+ *  - @geo-insight/host-tiptap: tiptap glue.
  */
 function manualChunks(id) {
   // 국가별 ADM1 지오메트리 JSON 은 묶지 말 것 — 동적 import 로 분해된 lazy 청크를

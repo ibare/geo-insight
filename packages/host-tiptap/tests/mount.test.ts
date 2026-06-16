@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from 'vitest';
-import type { GeoFeature } from '@geoinsight/core';
+import type { GeoFeature } from '@geo-insight/core';
 import { mountGeoInsight } from '../src/mount.js';
 
 /** California(US-CA) 더미 — id 는 실제 gazetteer adm1_code 와 일치해야 resolver 가 잡는다. */

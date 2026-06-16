@@ -2,7 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { App } from './App.js';
-import '@geoinsight/runtime/styles.css';
+import '@geo-insight/runtime/styles.css';
 import './styles.css';
 
 createRoot(document.getElementById('root')!).render(

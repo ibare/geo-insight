@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
-import { buildModel, renderModel } from '@geoinsight/core';
+import { buildModel, renderModel } from '@geo-insight/core';
 import { applyViewState, captureViewState, type ViewState } from '../src/view-state.js';
 import type { ViewBox } from '../src/zoom-pan.js';
 

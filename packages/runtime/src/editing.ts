@@ -32,7 +32,7 @@ import {
   type LocatedCountry,
   type Locator,
   type MetaCamera,
-} from '@geoinsight/core';
+} from '@geo-insight/core';
 import type { ViewBox } from './zoom-pan.js';
 
 export interface EditingParams {

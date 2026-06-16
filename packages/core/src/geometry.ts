@@ -6,7 +6,7 @@
  */
 
 import { geoArea, geoBounds, geoCentroid, geoDistance, geoGraticule10, geoInterpolate } from 'd3-geo';
-import type { GeoFeature } from '@geoinsight/data';
+import type { GeoFeature } from '@geo-insight/data';
 
 /** 경위도 격자(graticule) GeoJSON — 10° 간격. emit 배경 레이어용. */
 export function graticule(): unknown {

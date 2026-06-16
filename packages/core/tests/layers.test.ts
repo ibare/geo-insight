@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createDefaultDataSource } from '@geoinsight/data';
-import { loadLayerFromDisk, readLayerFile } from '@geoinsight/data/node';
+import { createDefaultDataSource } from '@geo-insight/data';
+import { loadLayerFromDisk, readLayerFile } from '@geo-insight/data/node';
 import { compile } from '../src/compile.js';
 
 describe('layers — 큐레이션 레이어(해류) 파이프라인', () => {

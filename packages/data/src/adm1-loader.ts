@@ -3,7 +3,7 @@
  *
  * `import('../assets/adm1/<ccn3>.json')` 템플릿을 번들러가 국가별 lazy 청크로 분해한다
  * (Vite dynamic-import-vars). Node fs 비종속이라 브라우저에서 안전. index.ts 에 두지 않고
- * '@geoinsight/data/browser' 서브경로로 분리해 host-tiptap 번들 오염을 막는다.
+ * '@geo-insight/data/browser' 서브경로로 분리해 host-tiptap 번들 오염을 막는다.
  */
 
 import { decodeAdm1 } from './adm1.js';

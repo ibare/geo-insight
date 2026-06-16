@@ -1,5 +1,5 @@
 /**
- * @geoinsight/data 공개 타입.
+ * @geo-insight/data 공개 타입.
  *
  * core 는 이 타입들만 알면 된다 — d3-geo·topojson 구체 구현은 data 안에 숨긴다.
  * GeoFeature 는 GeoJSON Feature 의 최소 형태(Polygon/MultiPolygon 한정)로,

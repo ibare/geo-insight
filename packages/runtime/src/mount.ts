@@ -33,7 +33,7 @@ import {
   type Locator,
   type Resolver,
   type SceneModel,
-} from '@geoinsight/core';
+} from '@geo-insight/core';
 import { attachZoomPan, type ViewBox, type ZoomPanController } from './zoom-pan.js';
 import { attachEditing, type EditingController } from './editing.js';
 import { applyViewState, captureViewState, type ViewState } from './view-state.js';

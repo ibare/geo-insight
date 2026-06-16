@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from 'vitest';
-import { cameraFromMeta, type GeoFeature } from '@geoinsight/core';
+import { cameraFromMeta, type GeoFeature } from '@geo-insight/core';
 import { mount } from '../src/mount.js';
 
 /** happy-dom 레이아웃 부재 → getBoundingClientRect 를 viewBox 와 동일 rect 로 스텁. */

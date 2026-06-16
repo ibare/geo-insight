@@ -1,5 +1,5 @@
 import './style.css';
-import '@geoinsight/runtime/styles.css';
+import '@geo-insight/runtime/styles.css';
 import { mountPlayground } from './playground.js';
 import { mountEditorDemo } from './editor-demo.js';
 

@@ -1,6 +1,6 @@
-import { mount, type GeoInstance } from '@geoinsight/runtime';
-import { DEFAULT_FLOW_WIDTH_PARAMS, type Diagnostic, type FlowWidthParams } from '@geoinsight/core';
-import { loadAdm1Browser, loadLayerBrowser } from '@geoinsight/data/browser';
+import { mount, type GeoInstance } from '@geo-insight/runtime';
+import { DEFAULT_FLOW_WIDTH_PARAMS, type Diagnostic, type FlowWidthParams } from '@geo-insight/core';
+import { loadAdm1Browser, loadLayerBrowser } from '@geo-insight/data/browser';
 import { PRESETS } from './presets.js';
 
 /** 흐름 두께 튜닝 슬라이더 정의 — flow-width 파라미터를 라이브로 조절. */

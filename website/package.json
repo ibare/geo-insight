@@ -1,5 +1,5 @@
 {
-  "name": "@geoinsight/website",
+  "name": "@geo-insight/website",
   "version": "0.1.0",
   "private": true,
   "description": "GeoInsight 라이브 플레이그라운드",
@@ -11,10 +11,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@geoinsight/core": "workspace:*",
-    "@geoinsight/data": "workspace:*",
-    "@geoinsight/host-tiptap": "workspace:*",
-    "@geoinsight/runtime": "workspace:*",
+    "@geo-insight/core": "workspace:*",
+    "@geo-insight/data": "workspace:*",
+    "@geo-insight/host-tiptap": "workspace:*",
+    "@geo-insight/runtime": "workspace:*",
     "@tiptap/core": "^3.22.5",
     "@tiptap/pm": "^3.22.5",
     "@tiptap/starter-kit": "^3.22.5"

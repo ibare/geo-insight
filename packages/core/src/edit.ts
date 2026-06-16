@@ -9,7 +9,7 @@
  * 'unitedstates' 같은 표기 차이를 흡수.
  */
 
-import { normalizeName } from '@geoinsight/data';
+import { normalizeName } from '@geo-insight/data';
 
 const HEADER_RE = /^\s*earth\b/;
 

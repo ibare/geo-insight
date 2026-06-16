@@ -6,7 +6,7 @@
  * 않는다(클릭은 국가 단위).
  */
 
-import { createDefaultDataSource, type DataSource, type GeoFeature } from '@geoinsight/data';
+import { createDefaultDataSource, type DataSource, type GeoFeature } from '@geo-insight/data';
 import { geoContains } from 'd3-geo';
 
 export interface LocatedCountry {

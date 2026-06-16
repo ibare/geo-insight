@@ -18,12 +18,12 @@ earth:
 
 | 패키지 | 역할 | 의존 |
 |---|---|---|
-| `@geoinsight/data` | 지오메트리(world-atlas 110m) + 이름 resolver(한·영·ISO, 그룹) | world-atlas, world-countries, topojson-client |
-| `@geoinsight/core` | DSL → IR → SVG 컴파일러. 프레임워크/DOM 0 | `@geoinsight/data`, d3-geo |
-| `@geoinsight/runtime` | 바닐라 DOM 마운트 + 줌/팬. 프레임워크 0 | `@geoinsight/core` |
-| `@geoinsight/host-tiptap` | Tiptap 펜스 블록 익스텐션 (소스) | core, runtime; peer `@tiptap/*` |
-| `@geoinsight/tiptap` | 위 전체를 인라인한 self-contained ESM 번들 (npm 배포) | peer `@tiptap/core`, `@tiptap/pm` |
-| `@geoinsight/layer-editor` | 환경 레이어(해류·바람 등 흐름) 데이터 편집기 (Electron 데스크탑) | core, runtime, data; electron, react, radix |
+| `@geo-insight/data` | 지오메트리(world-atlas 110m) + 이름 resolver(한·영·ISO, 그룹) | world-atlas, world-countries, topojson-client |
+| `@geo-insight/core` | DSL → IR → SVG 컴파일러. 프레임워크/DOM 0 | `@geo-insight/data`, d3-geo |
+| `@geo-insight/runtime` | 바닐라 DOM 마운트 + 줌/팬. 프레임워크 0 | `@geo-insight/core` |
+| `@geo-insight/host-tiptap` | Tiptap 펜스 블록 익스텐션 (소스) | core, runtime; peer `@tiptap/*` |
+| `@geo-insight/tiptap` | 위 전체를 인라인한 self-contained ESM 번들 (npm 배포) | peer `@tiptap/core`, `@tiptap/pm` |
+| `@geo-insight/layer-editor` | 환경 레이어(해류·바람 등 흐름) 데이터 편집기 (Electron 데스크탑) | core, runtime, data; electron, react, radix |
 
 ## DSL
 
@@ -83,7 +83,7 @@ Node CLI 등에서 `registerExtProjection('robinson', geoRobinson)`로 주입할
 ## 프로그래밍 API
 
 ```ts
-import { compile } from '@geoinsight/core';
+import { compile } from '@geo-insight/core';
 
 const { svg, scene, diagnostics, meta } = compile(source, { width: 960 });
 // svg: 결정적 SVG 문자열 (동일 입력 = 바이트 동일)
@@ -92,7 +92,7 @@ const { svg, scene, diagnostics, meta } = compile(source, { width: 960 });
 ```
 
 ```ts
-import { mount } from '@geoinsight/runtime';
+import { mount } from '@geo-insight/runtime';
 
 const inst = mount(el, source, { interactive: true });
 inst.zoomTo('729');  // 엔티티 key(ccn3 또는 group id)로 카메라 이동
@@ -109,7 +109,7 @@ content-analyzer가 ```` ```geoinsight ```` 펜스(또는 노드명 `geoinsightB
 // extension-registry.ts (호스트)
 geoinsight: [
   async () => {
-    const m = await import('@geoinsight/tiptap');
+    const m = await import('@geo-insight/tiptap');
     if (!bootstrapped) { m.bootstrapGeoInsight(); bootstrapped = true; }
     return m.GeoInsightExtension;
   },
@@ -123,19 +123,19 @@ const fenceLangToExtension = { /* … */ geoinsight: 'geoinsight' };
 ```
 
 - 노드 모델: 블록 노드 `geoinsightBlock`, `content: 'text*'` — DSL 소스를 textContent로 보관(trama 패턴).
-- NodeView: React 없는 vanilla DOM. `@geoinsight/runtime`의 줌/팬 맵을 마운트(FACET 패턴).
+- NodeView: React 없는 vanilla DOM. `@geo-insight/runtime`의 줌/팬 맵을 마운트(FACET 패턴).
 - 마크다운 round-trip: `geoInsightNodeToMarkdown(source, { height })` ↔ `GEOINSIGHT_FENCE_RE`.
 - 높이 영속: `data-height` attr (하단 핸들 드래그로 갱신).
 - peer: `@tiptap/core`, `@tiptap/pm` 둘뿐 (React 불요).
 
-## 레이어 에디터 (`@geoinsight/layer-editor`)
+## 레이어 에디터 (`@geo-insight/layer-editor`)
 
 해류·바람 같은 **환경 레이어 데이터**를 지도 위에서 직접 그려 편집하는 Electron 데스크탑 앱.
 전문가(도메인 전문가, 디자이너 아님)가 데이터를 입력하면 `methii`가 그대로 렌더한다.
 
 ```bash
-pnpm --filter @geoinsight/layer-editor dev    # 개발 실행
-pnpm --filter @geoinsight/layer-editor build  # electron-vite 빌드
+pnpm --filter @geo-insight/layer-editor dev    # 개발 실행
+pnpm --filter @geo-insight/layer-editor build  # electron-vite 빌드
 ```
 
 ### 흐름(flow) 프리미티브
@@ -205,8 +205,8 @@ pnpm --filter @geoinsight/layer-editor build  # electron-vite 빌드
 
 ### 데이터 모델 (A 모델)
 
-편집 대상은 `@geoinsight/data`의 빌드 자산(`packages/data/assets/layers/*.json`)이다.
-`편집 → 저장 → git → @geoinsight/* 빌드 → methii` 로 직접 이어진다.
+편집 대상은 `@geo-insight/data`의 빌드 자산(`packages/data/assets/layers/*.json`)이다.
+`편집 → 저장 → git → @geo-insight/* 빌드 → methii` 로 직접 이어진다.
 
 원본 직접 편집의 위험은 **작업본 분리(스테이징)**로 막는다:
 
@@ -221,7 +221,7 @@ pnpm --filter @geoinsight/layer-editor build  # electron-vite 빌드
 pnpm install
 pnpm test         # vitest (resolver / parser / compile / golden / 마운트)
 pnpm typecheck    # 전 패키지 tsc --noEmit
-pnpm build        # 각 패키지 + @geoinsight/tiptap rollup 번들
+pnpm build        # 각 패키지 + @geo-insight/tiptap rollup 번들
 ```
 
 ## 불변 원칙

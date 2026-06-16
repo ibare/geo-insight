@@ -12,7 +12,7 @@
  * 그룹(대륙/권역)은 멤버 폭증을 막으려 제외.
  */
 
-import { adm1NameIndex, createResolver, normalizeName, type Resolver } from '@geoinsight/data';
+import { adm1NameIndex, createResolver, normalizeName, type Resolver } from '@geo-insight/data';
 import { parse } from './parser.js';
 
 /** 소스에 등장하는 모든 장소 이름 토큰(점표기는 양쪽으로 분해). */

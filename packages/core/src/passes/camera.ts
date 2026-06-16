@@ -8,8 +8,8 @@
  * 지오메트리는 그대로 그리되 프레이밍만 주 클러스터에. 해외 영토로 인한 폭주 방지.
  */
 
-import type { GeoFeature, Resolver } from '@geoinsight/data';
-import { createResolver, normalizeName } from '@geoinsight/data';
+import type { GeoFeature, Resolver } from '@geo-insight/data';
+import { createResolver, normalizeName } from '@geo-insight/data';
 import { geoCentroid, geoDistance, geoPath } from 'd3-geo';
 import { centroidOf, largestPolygon } from '../geometry.js';
 import { createPathString, createProjection, type Projection, round } from '../projection.js';

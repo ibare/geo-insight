@@ -1,5 +1,5 @@
 {
-  "name": "@geoinsight/layer-editor",
+  "name": "@geo-insight/layer-editor",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -11,9 +11,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@geoinsight/core": "workspace:*",
-    "@geoinsight/data": "workspace:*",
-    "@geoinsight/runtime": "workspace:*",
+    "@geo-insight/core": "workspace:*",
+    "@geo-insight/data": "workspace:*",
+    "@geo-insight/runtime": "workspace:*",
     "@phosphor-icons/react": "^2.1.10",
     "@radix-ui/react-slider": "^1.4.0",
     "@radix-ui/react-switch": "^1.3.0",

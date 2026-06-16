@@ -17,7 +17,7 @@ import {
 } from '../src/edit.js';
 import { createLocator } from '../src/locate.js';
 import { compile } from '../src/compile.js';
-import { createResolver } from '@geoinsight/data';
+import { createResolver } from '@geo-insight/data';
 
 describe('DSL 패치 — addShowName', () => {
   it('기존 show 라인에 추가', () => {

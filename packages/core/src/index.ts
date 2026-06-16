@@ -1,5 +1,5 @@
 /**
- * @geoinsight/core — DSL → IR → SVG 컴파일러. 프레임워크/DOM 비종속.
+ * @geo-insight/core — DSL → IR → SVG 컴파일러. 프레임워크/DOM 비종속.
  */
 
 export {
@@ -82,4 +82,4 @@ export {
   type LayerFeature,
   type ResolveResult,
   type GroupDef,
-} from '@geoinsight/data';
+} from '@geo-insight/data';

@@ -5,7 +5,7 @@
  * 출력 재현성을 위해 투영 파라미터·viewBox 를 노출한다.
  */
 
-import type { GeoFeature } from '@geoinsight/data';
+import type { GeoFeature } from '@geo-insight/data';
 
 export type ProjectionType =
   | 'naturalEarth1'

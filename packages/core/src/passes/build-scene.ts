@@ -5,7 +5,7 @@
  * z-order 와 구면 centroid/bbox 를 채운 엔티티 목록과 link/label 사양을 만든다.
  */
 
-import { createResolver, normalizeName, type DataSource, type Resolver } from '@geoinsight/data';
+import { createResolver, normalizeName, type DataSource, type Resolver } from '@geo-insight/data';
 import type { Ast, PropMap, Role } from '../ast.js';
 import { type Diagnostic, error } from '../diagnostics.js';
 import { boundsOf, centroidOf, largestPolygon } from '../geometry.js';

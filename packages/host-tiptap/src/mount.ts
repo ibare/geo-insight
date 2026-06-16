@@ -1,15 +1,15 @@
 /**
  * 호스트(Tiptap 등) DOM 노드에 GeoInsight 인터랙티브 맵을 마운트하는 어댑터.
  *
- * @geoinsight/runtime 의 vanilla mount 를 감싸 height/editable/테마 힌트를 다룬다.
+ * @geo-insight/runtime 의 vanilla mount 를 감싸 height/editable/테마 힌트를 다룬다.
  * editable 이면 지도 클릭으로 국가/대륙을 추가·제거하고, 변경된 DSL 을 onChange 로
  * 호스트에 흘려보낸다(NodeView 가 ProseMirror textContent 로 write-back).
  * React 비종속 — 호스트 React 인스턴스를 끌어들이지 않는다(FACET 패턴).
  */
 
-import { mount as runtimeMount, type GeoInstance } from '@geoinsight/runtime';
-import '@geoinsight/runtime/styles.css';
-import type { CompileOptions, Diagnostic, GeoFeature, LayerFeature, Theme } from '@geoinsight/core';
+import { mount as runtimeMount, type GeoInstance } from '@geo-insight/runtime';
+import '@geo-insight/runtime/styles.css';
+import type { CompileOptions, Diagnostic, GeoFeature, LayerFeature, Theme } from '@geo-insight/core';
 
 export interface GeoMountOptions {
   /** 최초 마운트 시점의 DSL 소스 (Tiptap 노드의 textContent). */

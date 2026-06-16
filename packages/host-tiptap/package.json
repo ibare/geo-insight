@@ -1,5 +1,5 @@
 {
-  "name": "@geoinsight/host-tiptap",
+  "name": "@geo-insight/host-tiptap",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -13,9 +13,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@geoinsight/core": "workspace:*",
-    "@geoinsight/data": "workspace:*",
-    "@geoinsight/runtime": "workspace:*"
+    "@geo-insight/core": "workspace:*",
+    "@geo-insight/data": "workspace:*",
+    "@geo-insight/runtime": "workspace:*"
   },
   "peerDependencies": {
     "@tiptap/core": "^3.22.5",

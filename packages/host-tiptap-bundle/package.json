@@ -1,5 +1,5 @@
 {
-  "name": "@geoinsight/tiptap",
+  "name": "@geo-insight/tiptap",
   "version": "0.1.0",
   "type": "module",
   "description": "Tiptap NodeView for GeoInsight — embed deterministic, semantic geographic diagrams (\"Mermaid for maps\") inside your document via a ```geoinsight fence.",
@@ -35,20 +35,23 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "!dist/**/*.map",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "rollup -c rollup.config.mjs",
     "build:analyze": "VISUALIZE=1 rollup -c rollup.config.mjs",
     "typecheck": "tsc --noEmit",
-    "pack": "pnpm build && npm pack"
+    "pack": "pnpm build && npm pack",
+    "prepublishOnly": "pnpm build"
   },
   "peerDependencies": {
     "@tiptap/core": "^3.22.5",
     "@tiptap/pm": "^3.22.5"
   },
   "devDependencies": {
-    "@geoinsight/host-tiptap": "workspace:*",
+    "@geo-insight/host-tiptap": "workspace:*",
     "@rollup/plugin-commonjs": "^28.0.1",
     "@rollup/plugin-dynamic-import-vars": "^2.1.5",
     "@rollup/plugin-json": "^6.1.0",

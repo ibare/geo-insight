@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createDefaultDataSource, createResolver } from '@geoinsight/data';
-import { loadAdm1FromDisk } from '@geoinsight/data/node';
+import { createDefaultDataSource, createResolver } from '@geo-insight/data';
+import { loadAdm1FromDisk } from '@geo-insight/data/node';
 import { compile } from '../src/compile.js';
 import { DEFAULT_THEME } from '../src/theme.js';
 import { pickSelectFill } from '../src/color.js';

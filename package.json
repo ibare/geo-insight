@@ -5,10 +5,14 @@
   "description": "GeoInsight — 교육적 지리 설명을 위한 시맨틱 DSL → 결정적 SVG 렌더 엔진 (지도를 위한 Mermaid)",
   "scripts": {
     "build": "pnpm -r --filter './packages/**' run build",
-    "build:bundle": "pnpm --filter @geoinsight/tiptap run build",
+    "build:bundle": "pnpm --filter @geo-insight/tiptap run build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "pnpm -r --filter './packages/**' run typecheck"
+    "typecheck": "pnpm -r --filter './packages/**' run typecheck",
+    "release:check": "pnpm typecheck && pnpm test",
+    "release:patch": "pnpm release:check && pnpm --filter @geo-insight/tiptap exec npm version patch && pnpm --filter @geo-insight/tiptap exec npm publish && git push --follow-tags",
+    "release:minor": "pnpm release:check && pnpm --filter @geo-insight/tiptap exec npm version minor && pnpm --filter @geo-insight/tiptap exec npm publish && git push --follow-tags",
+    "release:major": "pnpm release:check && pnpm --filter @geo-insight/tiptap exec npm version major && pnpm --filter @geo-insight/tiptap exec npm publish && git push --follow-tags"
   },
   "devDependencies": {
     "@types/node": "22.9.0",
