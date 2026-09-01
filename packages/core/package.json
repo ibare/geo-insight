@@ -40,6 +40,10 @@
     "./validate": {
       "types": "./dist/validate.d.ts",
       "import": "./dist/validate.js"
+    },
+    "./spec": {
+      "types": "./dist/spec.d.ts",
+      "import": "./dist/spec.js"
     }
   },
   "files": [

@@ -52,13 +52,13 @@ earth "대권 항로":
   focus 인도   { fill: coral }
 
   link 한국 -> 인도 {
-    arrow: taper        # 끝이 굵어지는 wedge
+    head: taper         # 끝이 굵어지는 wedge (arrow: 가 아니라 head:)
     geodesic: true      # 대권선 샘플링 후 투영
     color: teal
     anchor: border      # border(국경 출발) | centroid
   }
 
-  label all { place: centroid, collide: true }
+  label all { collide: true }
 ```
 
 ### 키워드
@@ -66,14 +66,26 @@ earth "대권 항로":
 | 키 | 위치 | 값 |
 |---|---|---|
 | `show` | scene | 이름 리스트 |
+| `showOnly` | scene | **단일 국가** — 그 나라만 격리해 행정구역(ADM1)으로 캔버스를 채운다. `fit`/`center` 자동 |
+| `layers` | scene | 큐레이션 레이어 — `해류` \| `바람` |
 | `link` / `wind` / `current` / `route` | scene | `A -> B "라벨"` (관계 타입별 키워드, 트레일링 문자열은 라벨) |
 | `center` | scene | lon 숫자 \| 엔티티명 \| `pacific`/`태평양`/`atlantic`/`대서양`/`인도양` |
 | `arrange` | scene | `A -> B` (좌→우, center 자동 산출) |
 | `fit` | scene | `entities` \| `dominant` \| `world` \| `[w,s,e,n]` |
 | `projection` | scene | `naturalEarth1` \| `equirectangular` \| `mercator` \| `orthographic` \| `robinson`* \| `winkel3`* |
-| `group`/`focus`/`plain` | entity | `{ fill, borders, label, opacity }` |
+| `group`/`focus`/`plain` | entity | `{ fill, stroke, borders, label, opacity }` |
 | `link … { }` | scene | `{ type, label, labelAt, head, curve, color, anchor, geodesic }` |
 | `theme` | scene | `{ ocean, linkColor, worldFaint, graticule }` |
+
+**기본값**: `projection: equirectangular` · `fit: dominant` · `curve: 0.25` · `anchor: border` ·
+`geodesic: false` · `collide: true` · `labelAt: mid`.
+
+**주의(실동작)** — `arrow:` 는 무시된다(정식 키는 `head:`, `arrow: line` 만 하위호환).
+`label { place: … }` 도 무시되며 라벨은 항상 centroid 에 놓인다. `#` 은 주석이라 `#ff8800`
+같은 hex 색은 쓸 수 없다 — 색은 토큰이나 CSS 색 이름으로 쓴다.
+
+> DSL 명세의 **정본은 `DSL_SPEC`** 이다(아래 [LLM 파이프라인](#llm-파이프라인-parse--validate--spec) 참조).
+> 어휘·그룹·레이어 목록을 코드에서 파생시키므로 이 README 보다 항상 최신이다.
 
 **링크 타입**: `arrow`(기본, taper wedge+화살촉) · `wind`(점선 흐름) · `current`(물결, 해류) · `route`(가는 점선). 최소형은 타입 키워드로(`wind: 태평양 -> 인도양 "무역풍"`), 명시형은 `link … { type: current, label: "쿠로시오", labelAt: mid }`. `head`(`taper`\|`triangle`\|`none`)로 화살촉 모양 조정. 새 타입은 `registerLinkRenderer(type, fn)`로 확장 가능.
 
@@ -90,6 +102,35 @@ const { svg, scene, diagnostics, meta } = compile(source, { width: 960 });
 // scene: IR (entities/links/labels/projectionParams)
 // diagnostics: 미해석 이름 등 (error/warning + suggestions)
 ```
+
+### LLM 파이프라인 (`parse` / `validate` / `spec`)
+
+배럴(`@geo-insight/core`)은 지오메트리까지 끌고 오므로(2.5MB) 검증만 하는 호출자에겐 과하고,
+JSON 정적 import 때문에 Node 20/22+ 에서는 import 자체가 실패한다. 용도별 경량 진입점을 쓴다:
+
+| 진입점 | 용도 | 번들 | Node |
+|---|---|---|---|
+| `@geo-insight/core/parse` | 문법만 (에디터 실시간 검사) | 6.9KB | ESM + CJS |
+| `@geo-insight/core/validate` | 문법 + 지명 + 키/값 (생성 검증) | 777KB | ESM |
+| `@geo-insight/core/spec` | LLM 프롬프트용 명세 | — | ESM |
+| `@geo-insight/core` | 컴파일 + SVG | 2.5MB | 번들러 필요 |
+
+```ts
+import { validate } from '@geo-insight/core/validate';
+
+const { ok, diagnostics, names } = validate(source);
+// ok=false 면 diagnostics 로 재생성. names 는 지명 해석 결과(kind/key/display).
+```
+
+`validate` 의 검출력은 `compile` 보다 넓다 — 미지 entity/link 속성, 잘못된 `fit`, 없는 색
+토큰처럼 `compile` 이 조용히 무시하던 것까지 잡는다. 지오메트리를 로드하지 않고도 ADM1
+(`California`, `미국.캘리포니아`)을 해석한다.
+
+```ts
+import { DSL_SPEC } from '@geo-insight/core/spec';   // 영문 마크다운 ≈2.4k 토큰
+```
+
+CJS 워커에서는 동적 import 로 쓴다: `const { validate } = await import('@geo-insight/core/validate')`.
 
 ```ts
 import { mount } from '@geo-insight/runtime';

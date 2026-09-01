@@ -25,74 +25,27 @@ import { parse } from './parser.js';
 import { COLOR_TOKENS } from './theme.js';
 
 // ── 어휘 ────────────────────────────────────────────────────────────────────
+// 검사와 문서(spec)가 같은 표를 읽도록 vocabulary.ts 를 단일 출처로 쓴다.
 
-/** link 계열 scene 키워드 — build-scene 의 LINK_KEYWORDS 와 일치해야 한다. */
-const LINK_KEYWORDS = ['link', 'arrow', 'wind', 'current', 'route'] as const;
+import {
+  ANCHORS,
+  BORDERS,
+  CENTER_KEYWORDS,
+  DSL_VOCABULARY,
+  ENTITY_PROPS,
+  FIT_MODES,
+  HEADS,
+  LABEL_ATS,
+  LABEL_PROPS,
+  LINK_KEYWORDS,
+  LINK_PROPS,
+  LINK_TYPES,
+  PROJECTIONS,
+  SCENE_KEYS,
+  THEME_KEYS,
+} from './vocabulary.js';
 
-/** scene 레벨 키 전량. */
-const SCENE_KEYS = [
-  'show',
-  'showOnly',
-  'layers',
-  'center',
-  'arrange',
-  'fit',
-  'projection',
-  ...LINK_KEYWORDS,
-] as const;
-
-const ENTITY_PROPS = ['fill', 'stroke', 'borders', 'label', 'opacity'] as const;
-const LINK_PROPS = [
-  'type',
-  'label',
-  'labelAt',
-  'head',
-  'curve',
-  'color',
-  'anchor',
-  'geodesic',
-  // 하위호환 별칭 — 값이 'line' 일 때만 의미가 있고 그 외는 무시된다(별도 경고).
-  'arrow',
-] as const;
-const LABEL_PROPS = ['collide', 'place'] as const;
-const THEME_KEYS = ['ocean', 'linkColor', 'worldFaint', 'graticule'] as const;
-
-const PROJECTIONS = ['naturalEarth1', 'equirectangular', 'mercator', 'orthographic', 'robinson', 'winkel3'] as const;
-const FIT_MODES = ['entities', 'dominant', 'world'] as const;
-const ANCHORS = ['border', 'centroid'] as const;
-const LABEL_ATS = ['start', 'mid', 'end'] as const;
-const HEADS = ['taper', 'wedge', 'triangle', 'none', 'line'] as const;
-const BORDERS = ['keep', 'true', 'false'] as const;
-const LINK_TYPES = ['arrow', 'wind', 'current', 'route'] as const;
-/** center 의 방위 키워드. 그 외에는 경도 숫자이거나 엔티티 이름이다. */
-const CENTER_KEYWORDS = ['pacific', '태평양', 'atlantic', '대서양', '인도양'] as const;
-
-/** 이 소스가 참조하는 어휘 전량 — spec 생성·문서화에서 재사용한다. */
-export const DSL_VOCABULARY = {
-  sceneKeys: SCENE_KEYS,
-  entityProps: ENTITY_PROPS,
-  linkProps: LINK_PROPS,
-  labelProps: LABEL_PROPS,
-  themeKeys: THEME_KEYS,
-  projections: PROJECTIONS,
-  fitModes: FIT_MODES,
-  anchors: ANCHORS,
-  labelAts: LABEL_ATS,
-  heads: HEADS,
-  linkTypes: LINK_TYPES,
-  colorTokens: Object.keys(COLOR_TOKENS),
-  centerKeywords: CENTER_KEYWORDS,
-  defaults: {
-    projection: 'equirectangular',
-    fit: 'dominant',
-    curve: 0.25,
-    anchor: 'border',
-    geodesic: false,
-    collide: true,
-    labelAt: 'mid',
-    head: 'taper (arrow) / triangle (wind·current) / none (route)',
-  },
-} as const;
+export { DSL_VOCABULARY };
 
 // ── 근접 제안 ───────────────────────────────────────────────────────────────
 
