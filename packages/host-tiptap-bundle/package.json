@@ -1,6 +1,6 @@
 {
   "name": "@geo-insight/tiptap",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "Tiptap NodeView for GeoInsight — embed deterministic, semantic geographic diagrams (\"Mermaid for maps\") inside your document via a ```geoinsight fence.",
   "license": "MIT",

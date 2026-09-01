@@ -1,6 +1,6 @@
 {
   "name": "@geo-insight/data",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "GeoInsight geometry + place-name resolver — world-atlas topology, ADM1 subdivisions, multilingual name resolution.",
   "license": "MIT",
