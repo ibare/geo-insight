@@ -39,6 +39,10 @@
     "./browser": {
       "types": "./dist/src/browser.d.ts",
       "import": "./dist/src/browser.js"
+    },
+    "./names": {
+      "types": "./dist/src/names.d.ts",
+      "import": "./dist/src/names.js"
     }
   },
   "files": [
@@ -48,8 +52,9 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.build.json && mkdir -p dist/assets && cp -R assets/* dist/assets/",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && mkdir -p dist/assets && cp -R assets/* dist/assets/ && mkdir -p dist/src/generated && cp src/generated/name-index.js src/generated/name-index.d.ts dist/src/generated/",
     "build:adm1": "node scripts/build-adm1.mjs",
+    "build:names": "node scripts/build-name-index.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:run": "vitest run",

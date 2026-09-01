@@ -8,7 +8,14 @@
  * '남아프리카'는 국가(South Africa)로 해석되게 둔다.
  */
 
-import type { RawCountry } from './countries.js';
+/**
+ * 그룹 판정에 필요한 최소 구조. RawCountry(지오메트리 경로)도, CountryNameEntry(이름 검증
+ * 경로)도 이 모양을 만족한다 — 그래서 groups.ts 는 어느 쪽에도 의존하지 않는다.
+ */
+export interface GroupMatchable {
+  region: string;
+  subregion: string;
+}
 
 export interface GroupDef {
   /** 안정 키 — IR Entity.key 로 쓰인다 (예: 'group:africa'). */
@@ -18,7 +25,7 @@ export interface GroupDef {
   /** 정규화된 별칭들 (normalizeName 적용 결과와 비교). */
   aliases: string[];
   /** 멤버 국가 판별. */
-  match: (c: RawCountry) => boolean;
+  match: (c: GroupMatchable) => boolean;
 }
 
 /** 그룹/국가 이름 비교용 정규화: 소문자 + 공백·하이픈·언더스코어 제거. */
@@ -26,8 +33,8 @@ export function normalizeName(s: string): string {
   return s.toLowerCase().replace(/[\s\-_]/g, '');
 }
 
-const byRegion = (region: string) => (c: RawCountry) => c.region === region;
-const bySubregion = (subregion: string) => (c: RawCountry) => c.subregion === subregion;
+const byRegion = (region: string) => (c: GroupMatchable) => c.region === region;
+const bySubregion = (subregion: string) => (c: GroupMatchable) => c.subregion === subregion;
 
 /** 정의 순서 = 안정성. 같은 별칭이 둘 이상이면 먼저 정의된 것이 이긴다. */
 export const GROUP_DEFS: GroupDef[] = [
