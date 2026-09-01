@@ -1,6 +1,6 @@
 {
   "name": "@geo-insight/core",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "description": "GeoInsight compiler — semantic geographic DSL to deterministic SVG (IR pipeline, framework-free).",
   "license": "MIT",
