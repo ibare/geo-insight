@@ -59,7 +59,8 @@ npm view @geo-insight/tiptap version   # 새 버전과 일치하면 전파 완�
 
 ## 프로젝트 구조 / DSL
 
-전체 패키지 구성·DSL 문법·아키텍처는 [README.md](./README.md) 참조.
+사용법·DSL 문법은 [README.md](./README.md), 아키텍처·설계 결정은 [docs/DESIGN.md](./docs/DESIGN.md) 참조.
+설계를 바꾸는 커밋은 `docs/DESIGN.md` 의 해당 절도 함께 고친다.
 
 - `@geo-insight/core` — DSL → IR → SVG 컴파일러 (프레임워크/DOM 0)
 - `@geo-insight/data` — 지오메트리 + 이름 resolver
